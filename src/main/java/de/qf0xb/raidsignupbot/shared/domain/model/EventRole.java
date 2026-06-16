@@ -3,16 +3,26 @@ package de.qf0xb.raidsignupbot.shared.domain.model;
 import java.util.Objects;
 
 public class EventRole {
-  private final Long id;
+  private Long id;
   private String name;
+  private int count;
 
   public EventRole(String name) {
-    id = -1L;
     this.name = name;
+    this.count = 1;
+  }
+
+  public EventRole(String name, int count) {
+    this.name = name;
+    this.count = count;
   }
 
   public Long getId() {
     return id;
+  }
+
+  public void setId(Long  id) {
+    this.id = id;
   }
 
   public String getName() {
@@ -21,6 +31,14 @@ public class EventRole {
 
   public void setName() {
     this.name = name;
+  }
+
+  public int getCount() {
+    return count;
+  }
+
+  public void setCount(int count) {
+    this.count = count;
   }
 
   @Override
