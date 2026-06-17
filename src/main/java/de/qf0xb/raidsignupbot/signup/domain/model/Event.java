@@ -1,5 +1,7 @@
 package de.qf0xb.raidsignupbot.signup.domain.model;
 
+import de.qf0xb.raidsignupbot.template.domain.model.EventTemplate;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,8 +22,11 @@ public class Event {
 
   private EventSignup signup;
   private final List<EventTeam> roster = new ArrayList<>();
+  private final List<EventPlayerSignup> unmatchedPlayers = new ArrayList<>();
 
-  public Event(String name, String guildId, String channelCategoryId, String hosterId, Instant startTime, Instant endTime, float donation) {
+  private EventTemplate template;
+
+  public Event(String name, String guildId, String channelCategoryId, String hosterId, Instant startTime, Instant endTime, float donation, EventTemplate template) {
     this.name = name;
     this.guildId = guildId;
     this.channelCategoryId = channelCategoryId;
@@ -29,8 +34,17 @@ public class Event {
     this.startTime = startTime;
     this.endTime = endTime;
     this.donation = donation;
+    this.template = template;
 
     signup = new EventSignup("Test");
+  }
+
+  public EventTemplate getTemplate() {
+    return template;
+  }
+
+  public void setTemplate(EventTemplate template) {
+    this.template = template;
   }
 
   public EventSignup getSignup() {
@@ -43,6 +57,14 @@ public class Event {
 
   public void addTeam(EventTeam team) {
     roster.add(team);
+  }
+
+  public void removeTeam(EventTeam team) {
+    roster.remove(team);
+  }
+
+  public void resetRoster() {
+    roster.clear();
   }
 
   public Long getId() {
@@ -107,5 +129,21 @@ public class Event {
 
   public void setEndTime(Instant endTime) {
     this.endTime = endTime;
+  }
+
+  public List<EventPlayerSignup> getUnmatchedPlayers() {
+    return unmatchedPlayers;
+  }
+
+  public void addUnmatchedPlayer(EventPlayerSignup player) {
+    unmatchedPlayers.add(player);
+  }
+
+  public void addUnmatchedPlayers(List<EventPlayerSignup> players) {
+    unmatchedPlayers.addAll(players);
+  }
+
+  public void removeUnmatchedPlayer(EventPlayerSignup player) {
+    unmatchedPlayers.remove(player);
   }
 }

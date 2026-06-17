@@ -13,5 +13,6 @@
     pkgs.git
     pkgs.sops
     pkgs.age
+    pkgs.unzip
   ];
 }

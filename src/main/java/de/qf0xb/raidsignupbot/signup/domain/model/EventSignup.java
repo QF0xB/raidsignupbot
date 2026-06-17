@@ -1,5 +1,7 @@
 package de.qf0xb.raidsignupbot.signup.domain.model;
 
+import java.util.List;
+
 public class EventSignup {
   private final String discordChannel;
 
@@ -13,5 +15,9 @@ public class EventSignup {
 
   public String getDiscordChannel() {
     return discordChannel;
+  }
+
+  public List<EventPlayerSignup> getPlayers() {
+    return List.of();
   }
 }

@@ -29,8 +29,18 @@ public class EventRole {
     return name;
   }
 
-  public void setName() {
+  public void setName(String name) {
     this.name = name;
+  }
+
+  public boolean sameRoleAs(EventRole other) {
+    if (other == null) {
+      return false;
+    }
+    if (id != null && other.id != null) {
+      return Objects.equals(id, other.id);
+    }
+    return Objects.equals(name, other.name);
   }
 
   public int getCount() {
