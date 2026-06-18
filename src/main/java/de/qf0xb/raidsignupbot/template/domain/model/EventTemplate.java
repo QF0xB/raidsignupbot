@@ -1,44 +1,25 @@
 package de.qf0xb.raidsignupbot.template.domain.model;
 
+import lombok.Getter;
+import lombok.Setter;
+
+import java.util.ArrayList;
 import java.util.List;
 
+@Getter
+@Setter
 public class EventTemplate {
-  private Long id; // Created by persistence layer. Used for search
+  private String stub;
   private String name;
   private String description;
-  private List<String> guides;
 
-  private List<EventStrategyTemplate> strategies;
+  private final List<String> guides = new ArrayList<>();
+  private final List<EventStrategyTemplate> strategies = new ArrayList<>();
 
-  public EventTemplate(String name, String description, List<String> guides, List<EventStrategyTemplate> strategies) {
+  public EventTemplate(String stub, String name, String description) {
+    this.stub = stub;
     this.name = name;
     this.description = description;
-    this.guides = guides;
-    this.strategies = strategies;
-  }
-
-  public Long getId() {
-    return id;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public void setName(String name) {
-    this.name = name;
-  }
-
-  public String getDescription() {
-    return description;
-  }
-
-  public void setDescription(String description) {
-    this.description = description;
-  }
-
-  public List<String> getGuides() {
-    return guides;
   }
 
   public void addGuide(String guide) {
@@ -49,12 +30,8 @@ public class EventTemplate {
     guides.remove(guide);
   }
 
-  public void setGuides(List<String> guides) {
-    this.guides = guides;
-  }
-
-  public List<EventStrategyTemplate> getStrategies() {
-    return strategies;
+  public void clearGuides() {
+    guides.clear();
   }
 
   public void addStrategy(EventStrategyTemplate strategy) {
@@ -65,7 +42,7 @@ public class EventTemplate {
     strategies.remove(strategy);
   }
 
-  public void setStrategies(List<EventStrategyTemplate> strategies) {
-    this.strategies = strategies;
+  public void clearStrategies() {
+    strategies.clear();
   }
 }

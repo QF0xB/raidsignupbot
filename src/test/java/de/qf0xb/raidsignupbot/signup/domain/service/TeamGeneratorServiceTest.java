@@ -1,7 +1,6 @@
 package de.qf0xb.raidsignupbot.signup.domain.service;
 
 import de.qf0xb.raidsignupbot.shared.domain.model.EventRole;
-import de.qf0xb.raidsignupbot.shared.domain.model.EventUtilityRole;
 import de.qf0xb.raidsignupbot.shared.domain.model.PlayerProfile;
 import org.junit.jupiter.api.Test;
 
@@ -278,7 +277,7 @@ class TeamGeneratorServiceTest {
   void assignsRequiredUtilityFromEligibleAssignedPlayer() {
     EventRole stormSlot = role(1L, "Storm");
     EventRole mythSlot = role(2L, "Myth");
-    EventUtilityRole wcHex = utilityRole(1L, "WC Hex", 1);
+    EventRole wcHex = utilityRole(1L, "WC Hex", 1);
     wcHex.addEligibleRole(stormSlot);
     StrategyTemplate strategy = new StrategyTemplate(1L, "Storm Strategy");
     strategy.addRole(stormSlot);
@@ -308,7 +307,7 @@ class TeamGeneratorServiceTest {
     EventRole stormSlot = role(1L, "Storm");
     EventRole mythSlot = role(2L, "Myth");
     EventRole fireSlot = role(3L, "Fire");
-    EventUtilityRole wcHex = utilityRole(1L, "WC Hex", 2);
+    EventRole wcHex = utilityRole(1L, "WC Hex", 2);
     wcHex.addEligibleRole(stormSlot);
     wcHex.addEligibleRole(fireSlot);
     StrategyTemplate strategy = new StrategyTemplate(1L, "Utility Strategy");
@@ -343,7 +342,7 @@ class TeamGeneratorServiceTest {
   void doesNotCreateTeamWhenRequiredUtilityIsMissing() {
     EventRole stormSlot = role(1L, "Storm");
     EventRole mythSlot = role(2L, "Myth");
-    EventUtilityRole wcHex = utilityRole(1L, "WC Hex", 1);
+    EventRole wcHex = utilityRole(1L, "WC Hex", 1);
     wcHex.addEligibleRole(stormSlot);
     StrategyTemplate strategy = new StrategyTemplate(1L, "Storm Strategy");
     strategy.addRole(stormSlot);
@@ -371,7 +370,7 @@ class TeamGeneratorServiceTest {
   void doesNotUseUnassignedPlayersForRequiredUtility() {
     EventRole stormSlot = role(1L, "Storm");
     EventRole mythSlot = role(2L, "Myth");
-    EventUtilityRole wcHex = utilityRole(1L, "WC Hex", 1);
+    EventRole wcHex = utilityRole(1L, "WC Hex", 1);
     wcHex.addEligibleRole(stormSlot);
     StrategyTemplate strategy = new StrategyTemplate(1L, "Storm Strategy");
     strategy.addRole(stormSlot);
@@ -459,8 +458,8 @@ class TeamGeneratorServiceTest {
     return role;
   }
 
-  private static EventUtilityRole utilityRole(Long id, String name, int requiredCount) {
-    EventUtilityRole utilityRole = new EventUtilityRole(name, requiredCount);
+  private static EventRole utilityRole(Long id, String name, int requiredCount) {
+    EventRole utilityRole = new EventRole(name, requiredCount);
     utilityRole.setId(id);
     return utilityRole;
   }

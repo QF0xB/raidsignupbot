@@ -1,7 +1,6 @@
 package de.qf0xb.raidsignupbot.signup.domain.service;
 
 import de.qf0xb.raidsignupbot.shared.domain.model.EventRole;
-import de.qf0xb.raidsignupbot.shared.domain.model.EventUtilityRole;
 import de.qf0xb.raidsignupbot.shared.domain.model.PlayerProfile;
 
 import java.util.ArrayList;
@@ -10,7 +9,7 @@ import java.util.List;
 public class PlayerSignup {
   private final PlayerProfile playerProfile;
   private final List<EventRole> selectedRoles = new ArrayList<>();
-  private final List<EventUtilityRole> selectedUtilities = new ArrayList<>();
+  private final List<EventRole> selectedUtilities = new ArrayList<>();
 
   public PlayerSignup(String userId) {
     this(new PlayerProfile(userId));
@@ -23,7 +22,7 @@ public class PlayerSignup {
   public PlayerSignup(
       String userId,
       List<EventRole> selectedRoles,
-      List<EventUtilityRole> selectedUtilities
+      List<EventRole> selectedUtilities
   ) {
     this(new PlayerProfile(userId), selectedRoles, selectedUtilities);
   }
@@ -31,7 +30,7 @@ public class PlayerSignup {
   public PlayerSignup(
       PlayerProfile playerProfile,
       List<EventRole> selectedRoles,
-      List<EventUtilityRole> selectedUtilities
+      List<EventRole> selectedUtilities
   ) {
     this.playerProfile = playerProfile;
     this.selectedRoles.addAll(selectedRoles);
@@ -41,7 +40,7 @@ public class PlayerSignup {
   public PlayerSignup(
       String userId,
       List<EventRole> selectedRoles,
-      List<EventUtilityRole> selectedUtilities,
+      List<EventRole> selectedUtilities,
       int priorityScore
   ) {
     this(userId, selectedRoles, selectedUtilities);
@@ -64,11 +63,11 @@ public class PlayerSignup {
     selectedRoles.add(role);
   }
 
-  public List<EventUtilityRole> getSelectedUtilities() {
+  public List<EventRole> getSelectedUtilities() {
     return selectedUtilities;
   }
 
-  public void addSelectedUtility(EventUtilityRole utility) {
+  public void addSelectedUtility(EventRole utility) {
     selectedUtilities.add(utility);
   }
 
@@ -76,8 +75,8 @@ public class PlayerSignup {
     return selectedRoles.stream().anyMatch(selectedRole -> selectedRole.sameRoleAs(role));
   }
 
-  public boolean canProvideUtility(EventUtilityRole utility) {
-    return selectedUtilities.stream().anyMatch(selectedUtility -> selectedUtility.sameUtilityAs(utility));
+  public boolean canProvideUtility(EventRole utility) {
+    return selectedUtilities.stream().anyMatch(selectedUtility -> selectedUtility.sameRoleAs(utility));
   }
 
   public int selectedSlotCountFor(StrategyTemplate strategy) {

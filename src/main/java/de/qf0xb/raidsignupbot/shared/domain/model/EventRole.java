@@ -1,11 +1,13 @@
 package de.qf0xb.raidsignupbot.shared.domain.model;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class EventRole {
-  private Long id;
   private String name;
   private int count;
+  private final List<EventRole> eligibleRoles = new ArrayList<>();
 
   public EventRole(String name) {
     this.name = name;
@@ -49,6 +51,31 @@ public class EventRole {
 
   public void setCount(int count) {
     this.count = count;
+  }
+
+  public List<EventRole> getEligibleRoles() {
+    return eligibleRoles;
+  }
+
+  public void addEligibleRole(EventRole role) {
+    eligibleRoles.add(role);
+  }
+
+  public void addEligibleRoles(EventRole... roles) {
+    eligibleRoles.addAll(List.of(roles));
+  }
+
+  public void removeEligibleRole(EventRole role) {
+    eligibleRoles.remove(role);
+  }
+
+  public boolean canBeProvidedFromRole(EventRole role) {
+    return eligibleRoles.isEmpty()
+        || eligibleRoles.stream().anyMatch(eligibleRole -> eligibleRole.sameRoleAs(role));
+  }
+
+  public boolean isUtilityRole() {
+    return !eligibleRoles.isEmpty();
   }
 
   @Override

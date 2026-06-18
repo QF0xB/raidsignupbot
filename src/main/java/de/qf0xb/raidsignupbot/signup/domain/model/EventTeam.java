@@ -6,11 +6,34 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class EventTeam {
+  private Long id;
+  private Long eventId;
   private EventStrategyTemplate strategy;
   private final List<EventAssignedRole> assignedRoles = new ArrayList<>();
 
   public EventTeam(EventStrategyTemplate strategy) {
     this.strategy = strategy;
+  }
+
+  public EventTeam(Long eventId, EventStrategyTemplate strategy) {
+    this.eventId = eventId;
+    this.strategy = strategy;
+  }
+
+  public Long getId() {
+    return id;
+  }
+
+  public void setId(Long id) {
+    this.id = id;
+  }
+
+  public Long getEventId() {
+    return eventId;
+  }
+
+  public void setEventId(Long eventId) {
+    this.eventId = eventId;
   }
 
   public List<EventAssignedRole> getAssignedRoles() {

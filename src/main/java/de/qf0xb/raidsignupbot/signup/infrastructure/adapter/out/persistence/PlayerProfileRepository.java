@@ -10,4 +10,12 @@ public class PlayerProfileRepository implements PanacheRepositoryBase<PlayerProf
   public Optional<PlayerProfileEntity> findByUserId(String userId) {
     return find("userId", userId).firstResultOptional();
   }
+
+  public PlayerProfileEntity getOrCreate(String userId) {
+    return findByUserId(userId).orElseGet(() -> {
+      PlayerProfileEntity playerProfile = new PlayerProfileEntity(userId, 0);
+      persist(playerProfile);
+      return playerProfile;
+    });
+  }
 }

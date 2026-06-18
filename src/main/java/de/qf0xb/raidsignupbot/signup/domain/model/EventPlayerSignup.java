@@ -1,7 +1,6 @@
 package de.qf0xb.raidsignupbot.signup.domain.model;
 
 import de.qf0xb.raidsignupbot.shared.domain.model.EventRole;
-import de.qf0xb.raidsignupbot.shared.domain.model.EventUtilityRole;
 import de.qf0xb.raidsignupbot.template.domain.model.EventStrategyTemplate;
 
 import java.util.ArrayList;
@@ -10,7 +9,7 @@ import java.util.List;
 public class EventPlayerSignup {
   private final String playerIdentity;
   private final List<EventRole> roles = new ArrayList<>();
-  private final List<EventUtilityRole> utilityRoles = new ArrayList<>();
+  private final List<EventRole> utilityRoles = new ArrayList<>();
 
   public EventPlayerSignup(String playerIdentity) {
     this.playerIdentity = playerIdentity;
@@ -32,15 +31,15 @@ public class EventPlayerSignup {
     roles.remove(role);
   }
 
-  public List<EventUtilityRole> getUtilityRoles() {
+  public List<EventRole> getUtilityRoles() {
     return utilityRoles;
   }
 
-  public void addUtilityRole(EventUtilityRole role) {
+  public void addUtilityRole(EventRole role) {
     utilityRoles.add(role);
   }
 
-  public void removeUtilityRole(EventUtilityRole role) {
+  public void removeUtilityRole(EventRole role) {
     utilityRoles.remove(role);
   }
 

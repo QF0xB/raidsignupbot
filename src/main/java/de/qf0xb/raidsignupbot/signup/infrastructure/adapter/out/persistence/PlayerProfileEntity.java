@@ -7,9 +7,13 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "player_profile")
+@Getter
+@Setter
 public class PlayerProfileEntity extends PanacheEntityBase {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,30 +31,6 @@ public class PlayerProfileEntity extends PanacheEntityBase {
 
   public PlayerProfileEntity(String userId, int priorityScore) {
     this.userId = userId;
-    this.priorityScore = priorityScore;
-  }
-
-  public Long getId() {
-    return id;
-  }
-
-  public void setId(Long id) {
-    this.id = id;
-  }
-
-  public String getUserId() {
-    return userId;
-  }
-
-  public void setUserId(String userId) {
-    this.userId = userId;
-  }
-
-  public int getPriorityScore() {
-    return priorityScore;
-  }
-
-  public void setPriorityScore(int priorityScore) {
     this.priorityScore = priorityScore;
   }
 }

@@ -1,7 +1,6 @@
 package de.qf0xb.raidsignupbot.signup.domain.service;
 
 import de.qf0xb.raidsignupbot.shared.domain.model.EventRole;
-import de.qf0xb.raidsignupbot.shared.domain.model.EventUtilityRole;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -165,13 +164,13 @@ public class TeamGeneratorService {
   }
 
   private Optional<List<UtilityAssignment>> assignUtilities(
-      List<EventUtilityRole> requirements,
+      List<EventRole> requirements,
       List<SlotAssignment> slotAssignments
   ) {
     List<UtilityAssignment> utilityAssignments = new ArrayList<>();
 
-    for (EventUtilityRole requirement : requirements) {
-      int requiredCount = Math.max(0, requirement.getReqCount());
+    for (EventRole requirement : requirements) {
+      int requiredCount = Math.max(0, requirement.getCount());
       List<SlotAssignment> eligibleAssignments = slotAssignments.stream()
           .filter(slotAssignment -> requirement.canBeProvidedFromRole(slotAssignment.role()))
           .filter(slotAssignment -> slotAssignment.playerSignup().canProvideUtility(requirement))
@@ -203,11 +202,11 @@ public class TeamGeneratorService {
 
   private boolean alreadyAssignedForUtility(
       List<UtilityAssignment> utilityAssignments,
-      EventUtilityRole requirement,
+      EventRole requirement,
       PlayerSignup playerSignup
   ) {
     return utilityAssignments.stream().anyMatch(assignment ->
-        assignment.utility().sameUtilityAs(requirement)
+        assignment.utility().sameRoleAs(requirement)
             && assignment.playerSignup() == playerSignup
     );
   }

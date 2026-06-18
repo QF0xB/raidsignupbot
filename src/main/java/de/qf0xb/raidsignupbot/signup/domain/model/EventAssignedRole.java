@@ -1,19 +1,18 @@
 package de.qf0xb.raidsignupbot.signup.domain.model;
 
 import de.qf0xb.raidsignupbot.shared.domain.model.EventRole;
-import de.qf0xb.raidsignupbot.shared.domain.model.EventUtilityRole;
 
 public class EventAssignedRole {
   private EventPlayerSignup player;
   private EventRole role;
-  private EventUtilityRole utilityRole;
+  private EventRole utilityRole;
 
   public EventAssignedRole(EventPlayerSignup player, EventRole role) {
     this.player = player;
     this.role = role;
   }
 
-  public EventAssignedRole(EventPlayerSignup player, EventRole role, EventUtilityRole utilityRole) {
+  public EventAssignedRole(EventPlayerSignup player, EventRole role, EventRole utilityRole) {
     this.player = player;
     this.role = role;
     this.utilityRole = utilityRole;
@@ -35,11 +34,11 @@ public class EventAssignedRole {
     this.role = role;
   }
 
-  public EventUtilityRole getUtilityRole() {
+  public EventRole getUtilityRole() {
     return utilityRole;
   }
 
-  public void setUtilityRole(EventUtilityRole utilityRole) {
+  public void setUtilityRole(EventRole utilityRole) {
     this.utilityRole = utilityRole;
   }
 }
