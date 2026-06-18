@@ -9,8 +9,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class TeamGeneratorServiceTest {
   private final TeamGeneratorService service = new TeamGeneratorService();
@@ -42,7 +41,7 @@ class TeamGeneratorServiceTest {
     assertEquals(1, result.getTeams().size());
     assertEquals(2, result.getTeams().getFirst().getSlotAssignments().size());
     assertEquals(1, result.getUnmatchedPlayers().size());
-    assertTrue(!result.getUnmatchedPlayers().contains(flexiblePlayer));
+    assertFalse(result.getUnmatchedPlayers().contains(flexiblePlayer));
   }
 
   @Test
@@ -58,7 +57,7 @@ class TeamGeneratorServiceTest {
     PlayerSignup flexiblePlayer = new PlayerSignup("flexible");
     flexiblePlayer.addSelectedRole(slotA);
     flexiblePlayer.addSelectedRole(slotC);
-    PlayerProfile priorityProfile = new PlayerProfile("guild", "priority-only-a");
+    PlayerProfile priorityProfile = new PlayerProfile("priority-only-a");
     priorityProfile.setPriorityScore(1);
     PlayerSignup priorityOnlyA = new PlayerSignup(priorityProfile);
     priorityOnlyA.addSelectedRole(slotA);
@@ -85,11 +84,11 @@ class TeamGeneratorServiceTest {
     strategy.addRole(slotB);
     EventTemplate template = new EventTemplate(1L, "Raid");
     template.addStrategy(strategy);
-    PlayerProfile matchedAProfile = new PlayerProfile("guild", "matched-a");
+    PlayerProfile matchedAProfile = new PlayerProfile("matched-a");
     matchedAProfile.setPriorityScore(2);
-    PlayerProfile matchedBProfile = new PlayerProfile("guild", "matched-b");
+    PlayerProfile matchedBProfile = new PlayerProfile("matched-b");
     matchedBProfile.setPriorityScore(1);
-    PlayerProfile unmatchedProfile = new PlayerProfile("guild", "unmatched");
+    PlayerProfile unmatchedProfile = new PlayerProfile("unmatched");
     PlayerSignup matchedA = new PlayerSignup(matchedAProfile, List.of(slotA), List.of());
     PlayerSignup matchedB = new PlayerSignup(matchedBProfile, List.of(slotB), List.of());
     PlayerSignup unmatched = new PlayerSignup(unmatchedProfile);
@@ -236,7 +235,7 @@ class TeamGeneratorServiceTest {
     EventTemplate template = new EventTemplate(1L, "Raid");
     template.addStrategy(priorityStrategy);
     template.addStrategy(regularStrategy);
-    PlayerProfile priorityProfile = new PlayerProfile("guild", "priority");
+    PlayerProfile priorityProfile = new PlayerProfile("priority");
     priorityProfile.setPriorityScore(100);
     PlayerSignup priorityPlayer = new PlayerSignup(priorityProfile, List.of(priorityRole), List.of());
     EventSignup signup = new EventSignup(1L, "guild", "channel", "message");

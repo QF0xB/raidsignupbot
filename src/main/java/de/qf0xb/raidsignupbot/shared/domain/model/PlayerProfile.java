@@ -1,17 +1,12 @@
 package de.qf0xb.raidsignupbot.shared.domain.model;
 
 public class PlayerProfile {
-  private final String guildId;
   private final String userId;
   private int priorityScore;
 
-  public PlayerProfile(String guildId, String userId) {
-    this.guildId = guildId;
+  public PlayerProfile(String userId) {
     this.userId = userId;
-  }
-
-  public String getGuildId() {
-    return guildId;
+    this.priorityScore = 0;
   }
 
   public String getUserId() {

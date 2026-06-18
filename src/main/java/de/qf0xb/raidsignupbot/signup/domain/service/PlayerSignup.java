@@ -13,7 +13,7 @@ public class PlayerSignup {
   private final List<EventUtilityRole> selectedUtilities = new ArrayList<>();
 
   public PlayerSignup(String userId) {
-    this(new PlayerProfile(null, userId));
+    this(new PlayerProfile(userId));
   }
 
   public PlayerSignup(PlayerProfile playerProfile) {
@@ -25,7 +25,7 @@ public class PlayerSignup {
       List<EventRole> selectedRoles,
       List<EventUtilityRole> selectedUtilities
   ) {
-    this(new PlayerProfile(null, userId), selectedRoles, selectedUtilities);
+    this(new PlayerProfile(userId), selectedRoles, selectedUtilities);
   }
 
   public PlayerSignup(
