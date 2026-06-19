@@ -74,6 +74,11 @@
             <version>3.3.2</version>
         </dependency>
         <dependency>
+            <groupId>com.google.ortools</groupId>
+            <artifactId>ortools-java</artifactId>
+            <version>9.14.6206</version>
+        </dependency>
+        <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
             <version>${mapstruct.version}</version>
@@ -121,7 +126,7 @@
                 <configuration>
                     <parameters>true</parameters>
                     <compilerArgs>
-                        <arg>-Amapstruct.defaultComponentModel=cdi</arg>
+                        <arg>-Amapstruct.defaultComponentModel=jakarta-cdi</arg>
                     </compilerArgs>
                     <annotationProcessorPaths>
                         <path>

@@ -1,5 +1,6 @@
 package de.qf0xb.raidsignupbot;
 
+import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
 import io.quarkus.runtime.QuarkusApplication;
 import org.slf4j.Logger;
 
@@ -9,6 +10,7 @@ public class RaidSignupBot implements QuarkusApplication {
   @Override
   public int run(String... args) throws Exception {
     logger.info("Starting Raid Signup Bot");
+
     return 0;
   }
 }
