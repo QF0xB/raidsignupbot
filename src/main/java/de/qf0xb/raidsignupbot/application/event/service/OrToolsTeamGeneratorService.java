@@ -1,17 +1,15 @@
-package de.qf0xb.raidsignupbot.application.service;
+package de.qf0xb.raidsignupbot.application.event.service;
 
 import com.google.ortools.Loader;
 import com.google.ortools.sat.BoolVar;
-import com.google.ortools.sat.Constraint;
 import com.google.ortools.sat.CpModel;
 import com.google.ortools.sat.CpSolver;
 import com.google.ortools.sat.CpSolverStatus;
 import com.google.ortools.sat.Literal;
 import com.google.ortools.sat.LinearExpr;
-import de.qf0xb.raidsignupbot.application.dto.TeamGeneratorResult;
+import de.qf0xb.raidsignupbot.application.event.TeamGeneratorResult;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
-import de.qf0xb.raidsignupbot.domain.model.event.EventSlot;
 import de.qf0xb.raidsignupbot.domain.model.event.EventTeam;
 import de.qf0xb.raidsignupbot.domain.model.guild.GuildMember;
 import de.qf0xb.raidsignupbot.domain.model.template.EventRole;

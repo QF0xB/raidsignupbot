@@ -10,7 +10,7 @@ public class Guild {
 
   private String name;
 
-  private boolean isBotAdmin = false;
+  private boolean botAdmin = false;
 
   private boolean raiderRolesEnabled = true;
   private String raiderRoleId;

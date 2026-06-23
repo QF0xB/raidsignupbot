@@ -1,4 +1,4 @@
-package de.qf0xb.raidsignupbot.application.dto;
+package de.qf0xb.raidsignupbot.application.event;
 
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;

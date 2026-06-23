@@ -1,13 +1,13 @@
-package de.qf0xb.raidsignupbot.application.service;
+package de.qf0xb.raidsignupbot.application.event.service;
 
-import de.qf0xb.raidsignupbot.application.dto.TeamGeneratorResult;
+import de.qf0xb.raidsignupbot.application.event.TeamGeneratorResult;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
 import de.qf0xb.raidsignupbot.domain.model.event.EventSlot;
 import de.qf0xb.raidsignupbot.domain.model.event.EventTeam;
 import de.qf0xb.raidsignupbot.domain.model.guild.GuildMember;
-import de.qf0xb.raidsignupbot.domain.model.template.EventStrategy;
 import de.qf0xb.raidsignupbot.domain.model.template.EventUtilityRole;
+import de.qf0xb.raidsignupbot.domain.model.template.EventStrategy;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.jboss.logging.Logger;
 
@@ -18,143 +18,100 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class ExactTeamGeneratorService implements TeamGeneratorService {
-  private static final Logger log = Logger.getLogger(ExactTeamGeneratorService.class);
+public class BeamTeamGeneratorService implements TeamGeneratorService {
+  private static final Logger log = Logger.getLogger(BeamTeamGeneratorService.class);
+  private static final int MIN_BEAM_WIDTH = 24;
+  private static final int REMAINING_SIGNUPS_BEAM_MULTIPLIER = 2;
 
+  @Override
   public TeamGeneratorResult generateTeams(Event event, List<EventMemberSignup> signups) {
     List<EventMemberSignup> remainingSignups = new ArrayList<>(signups);
-    log.infof(
-        "Team generation started: signups=%d, strategies=%d, hoster=%s",
-        remainingSignups.size(),
-        event.getTemplate() == null ? 0 : event.getTemplate().getStrategies().size(),
-        event.getHoster() == null ? "<none>" : event.getHoster().getUserId()
-    );
     if (event.getTemplate() == null || event.getTemplate().getStrategies().isEmpty()) {
-      log.info("Team generation skipped: no template strategies configured");
       return new TeamGeneratorResult(List.of(), remainingSignups);
     }
 
     boolean hosterSignedUp = remainingSignups.stream()
         .anyMatch(signup -> sameMember(signup.getGuildMember(), event.getHoster()));
 
-    SearchResult bestResult = searchBestResult(
-        event,
-        event.getTemplate().getStrategies(),
-        remainingSignups,
-        new HashMap<>(),
-        hosterSignedUp,
-        new AtomicLong()
-    );
+    List<BeamState> beam = new ArrayList<>();
+    beam.add(new BeamState(List.of(), remainingSignups, false, 0, 0, Integer.MAX_VALUE));
 
-    if (hosterSignedUp && !bestResult.hosterMatched()) {
-      log.info("Team generation failed hoster constraint; returning no teams");
-      return new TeamGeneratorResult(List.of(), remainingSignups);
+    BeamState bestTerminal = null;
+    while (!beam.isEmpty()) {
+      List<BeamState> nextBeam = new ArrayList<>();
+      boolean expandedAny = false;
+
+      for (BeamState state : beam) {
+        boolean expandedState = false;
+
+        for (EventStrategy strategy : event.getTemplate().getStrategies()) {
+          for (TeamCandidate candidate : buildTeamCandidates(strategy, state.remainingSignups())) {
+            expandedAny = true;
+            expandedState = true;
+
+            List<EventMemberSignup> nextRemainingSignups = new ArrayList<>(state.remainingSignups());
+            nextRemainingSignups.removeAll(candidate.usedSignups());
+
+            List<EventTeam> nextTeams = new ArrayList<>(state.teams().size() + 1);
+            nextTeams.addAll(state.teams());
+            nextTeams.add(candidate.team());
+
+            BeamState nextState = new BeamState(
+                List.copyOf(nextTeams),
+                List.copyOf(nextRemainingSignups),
+                state.hosterMatched() || candidate.includesHoster(event.getHoster()),
+                state.assignedMembers() + candidate.assignedMembers(),
+                state.priorityScore() + candidate.priorityScore(),
+                state.flexibilityScore() + candidate.flexibilityScore()
+            );
+            nextBeam.add(nextState);
+          }
+        }
+
+        if (!expandedState) {
+          bestTerminal = betterOf(bestTerminal, state, hosterSignedUp);
+        }
+      }
+
+      if (!expandedAny) {
+        break;
+      }
+
+      nextBeam = dedupeStates(nextBeam, hosterSignedUp);
+      nextBeam.sort(stateComparator(hosterSignedUp));
+      beam = nextBeam.stream().limit(beamWidth(beam)).toList();
+    }
+
+    BeamState best = bestTerminal;
+    for (BeamState state : beam) {
+      best = betterOf(best, state, hosterSignedUp);
+    }
+
+    if (best == null) {
+      best = new BeamState(List.of(), List.copyOf(remainingSignups), false, 0, 0, Integer.MAX_VALUE);
+    }
+
+    if (hosterSignedUp && !best.hosterMatched()) {
+      return new TeamGeneratorResult(List.of(), List.copyOf(signups));
     }
 
     log.infof(
-        "Team generation finished: teams=%d, unmatched=%d",
-        bestResult.teams().size(),
-        bestResult.unmatchedSignups().size()
+        "Beam team generation finished: teams=%d, unmatched=%d",
+        best.teams().size(),
+        best.remainingSignups().size()
     );
-    return new TeamGeneratorResult(bestResult.teams(), bestResult.unmatchedSignups());
+    return new TeamGeneratorResult(best.teams(), best.remainingSignups());
   }
 
-  private SearchResult searchBestResult(
-      Event event,
-      Set<EventStrategy> strategies,
-      List<EventMemberSignup> remainingSignups,
-      Map<String, SearchResult> memo,
-      boolean hosterSignedUp,
-      AtomicLong statesVisited
-  ) {
-    long visited = statesVisited.incrementAndGet();
-    if (visited == 1 || visited % 500 == 0) {
-      log.infof(
-          "Team search checkpoint: visited=%d, remainingSignups=%d, memoSize=%d",
-          visited,
-          remainingSignups.size(),
-          memo.size()
-      );
-    }
-
-    String cacheKey = buildCacheKey(remainingSignups);
-    SearchResult cachedResult = memo.get(cacheKey);
-    if (cachedResult != null) {
-      return cachedResult;
-    }
-
-    SearchResult bestResult = new SearchResult(
-        List.of(),
-        List.copyOf(remainingSignups),
-        false,
-        0,
-        0,
-        Integer.MAX_VALUE
-    );
-
-    boolean foundCandidate = false;
-    for (EventStrategy strategy : strategies) {
-      for (TeamCandidate candidate : buildTeamCandidates(strategy, remainingSignups)) {
-        foundCandidate = true;
-
-        List<EventMemberSignup> nextRemainingSignups = new ArrayList<>(remainingSignups);
-        nextRemainingSignups.removeAll(candidate.usedSignups());
-
-        SearchResult tailResult = searchBestResult(
-            event,
-            strategies,
-            nextRemainingSignups,
-            memo,
-            hosterSignedUp,
-            statesVisited
-        );
-
-        List<EventTeam> combinedTeams = new ArrayList<>(1 + tailResult.teams().size());
-        combinedTeams.add(candidate.team());
-        combinedTeams.addAll(tailResult.teams());
-
-        SearchResult combinedResult = new SearchResult(
-            List.copyOf(combinedTeams),
-            tailResult.unmatchedSignups(),
-            candidate.includesHoster(event.getHoster()) || tailResult.hosterMatched(),
-            candidate.assignedMembers() + tailResult.assignedMembers(),
-            candidate.priorityScore() + tailResult.priorityScore(),
-            candidate.flexibilityScore() + tailResult.flexibilityScore()
-        );
-
-        if (isBetter(combinedResult, bestResult, hosterSignedUp)) {
-          bestResult = combinedResult;
-        }
-      }
-    }
-
-    if (!foundCandidate) {
-      memo.put(cacheKey, bestResult);
-      return bestResult;
-    }
-
-    memo.put(cacheKey, bestResult);
-    return bestResult;
-  }
-
-  private boolean isBetter(SearchResult candidate, SearchResult currentBest, boolean hosterSignedUp) {
-    if (hosterSignedUp && candidate.hosterMatched() != currentBest.hosterMatched()) {
-      return candidate.hosterMatched();
-    }
-    if (candidate.teams().size() != currentBest.teams().size()) {
-      return candidate.teams().size() > currentBest.teams().size();
-    }
-    if (candidate.assignedMembers() != currentBest.assignedMembers()) {
-      return candidate.assignedMembers() > currentBest.assignedMembers();
-    }
-    if (candidate.priorityScore() != currentBest.priorityScore()) {
-      return candidate.priorityScore() > currentBest.priorityScore();
-    }
-    return candidate.flexibilityScore() < currentBest.flexibilityScore();
+  private int beamWidth(List<BeamState> beam) {
+    int maxRemainingSignups = beam.stream()
+        .mapToInt(state -> state.remainingSignups().size())
+        .max()
+        .orElse(0);
+    return Math.max(MIN_BEAM_WIDTH, maxRemainingSignups * REMAINING_SIGNUPS_BEAM_MULTIPLIER);
   }
 
   private String buildCacheKey(List<EventMemberSignup> remainingSignups) {
@@ -164,15 +121,52 @@ public class ExactTeamGeneratorService implements TeamGeneratorService {
         .collect(Collectors.joining("|"));
   }
 
+  private List<BeamState> dedupeStates(List<BeamState> states, boolean hosterSignedUp) {
+    Map<String, BeamState> bestStates = new HashMap<>();
+    for (BeamState state : states) {
+      String key = buildCacheKey(state.remainingSignups());
+      bestStates.merge(
+          key,
+          state,
+          (left, right) -> stateComparator(hosterSignedUp).compare(left, right) <= 0 ? left : right
+      );
+    }
+    return new ArrayList<>(bestStates.values());
+  }
+
+  private Comparator<BeamState> stateComparator(boolean hosterSignedUp) {
+    return (left, right) -> {
+      if (hosterSignedUp && left.hosterMatched() != right.hosterMatched()) {
+        return left.hosterMatched() ? -1 : 1;
+      }
+      if (left.teams().size() != right.teams().size()) {
+        return Integer.compare(right.teams().size(), left.teams().size());
+      }
+      if (left.assignedMembers() != right.assignedMembers()) {
+        return Integer.compare(right.assignedMembers(), left.assignedMembers());
+      }
+      if (left.priorityScore() != right.priorityScore()) {
+        return Integer.compare(right.priorityScore(), left.priorityScore());
+      }
+      return Integer.compare(left.flexibilityScore(), right.flexibilityScore());
+    };
+  }
+
+  private BeamState betterOf(BeamState currentBest, BeamState candidate, boolean hosterSignedUp) {
+    if (currentBest == null) {
+      return candidate;
+    }
+    return stateComparator(hosterSignedUp).compare(candidate, currentBest) < 0 ? candidate : currentBest;
+  }
+
   private List<TeamCandidate> buildTeamCandidates(
       EventStrategy strategy,
       List<EventMemberSignup> remainingSignups
   ) {
     List<TeamCandidate> candidates = new ArrayList<>();
-    List<EventSlot> slots = new EventTeam(strategy).getSlots();
     assignSlots(
         strategy,
-        slots,
+        new EventTeam(strategy).getSlots(),
         remainingSignups,
         0,
         new ArrayList<>(),
@@ -191,12 +185,6 @@ public class ExactTeamGeneratorService implements TeamGeneratorService {
       Set<EventMemberSignup> usedSignups,
       List<TeamCandidate> candidates
   ) {
-    int remainingSlots = slots.size() - slotIndex;
-    int availableSignups = remainingSignups.size() - usedSignups.size();
-    if (availableSignups < remainingSlots) {
-      return;
-    }
-
     if (slotIndex == slots.size()) {
       assignUtilities(
           strategy,
@@ -205,6 +193,12 @@ public class ExactTeamGeneratorService implements TeamGeneratorService {
           new ArrayList<>(),
           candidates
       );
+      return;
+    }
+
+    int remainingSlots = slots.size() - slotIndex;
+    int availableSignups = remainingSignups.size() - usedSignups.size();
+    if (availableSignups < remainingSlots) {
       return;
     }
 
@@ -306,35 +300,18 @@ public class ExactTeamGeneratorService implements TeamGeneratorService {
       List<RoleAssignment> primaryAssignments,
       List<RoleAssignment> utilityAssignments
   ) {
-    if (primaryAssignments.isEmpty()) {
-      throw new IllegalStateException("Cannot build an empty team");
-    }
-
     EventTeam team = new EventTeam(strategy);
-    primaryAssignments.forEach(assignment ->
-        team.assign(assignment.roleKey(), assignment.signup().getGuildMember()));
+    primaryAssignments.forEach(assignment -> team.assign(assignment.roleKey(), assignment.signup().getGuildMember()));
     utilityAssignments.forEach(assignment ->
         team.assignUtility(assignment.roleKey(), assignment.signup().getGuildMember()));
     return team;
   }
 
   private static boolean sameMember(GuildMember left, GuildMember right) {
-    return left != null
-        && right != null
-        && left.getUserId().equals(right.getUserId());
+    return left != null && right != null && left.getUserId().equals(right.getUserId());
   }
 
   private record RoleAssignment(String roleKey, EventMemberSignup signup) {
-  }
-
-  private record SearchResult(
-      List<EventTeam> teams,
-      List<EventMemberSignup> unmatchedSignups,
-      boolean hosterMatched,
-      int assignedMembers,
-      int priorityScore,
-      int flexibilityScore
-  ) {
   }
 
   private record TeamCandidate(EventTeam team, List<EventMemberSignup> usedSignups) {
@@ -360,5 +337,15 @@ public class ExactTeamGeneratorService implements TeamGeneratorService {
           .mapToInt(signup -> signup.getRoleKeys().size())
           .sum();
     }
+  }
+
+  private record BeamState(
+      List<EventTeam> teams,
+      List<EventMemberSignup> remainingSignups,
+      boolean hosterMatched,
+      int assignedMembers,
+      int priorityScore,
+      int flexibilityScore
+  ) {
   }
 }

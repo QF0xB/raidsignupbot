@@ -1,6 +1,7 @@
 package de.qf0xb.raidsignupbot.application.service;
 
-import de.qf0xb.raidsignupbot.application.dto.TeamGeneratorResult;
+import de.qf0xb.raidsignupbot.application.event.TeamGeneratorResult;
+import de.qf0xb.raidsignupbot.application.event.service.OrToolsTeamGeneratorService;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
 import de.qf0xb.raidsignupbot.domain.model.event.EventTeam;

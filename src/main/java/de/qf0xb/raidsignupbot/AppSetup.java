@@ -1,12 +1,14 @@
 package de.qf0xb.raidsignupbot;
 
-import de.qf0xb.raidsignupbot.application.dto.TeamGeneratorResult;
-import de.qf0xb.raidsignupbot.application.service.OrToolsTeamGeneratorService;
+import de.qf0xb.raidsignupbot.application.event.TeamGeneratorResult;
+import de.qf0xb.raidsignupbot.application.event.port.GuildApplicationPort;
+import de.qf0xb.raidsignupbot.application.event.service.OrToolsTeamGeneratorService;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
 import de.qf0xb.raidsignupbot.domain.model.event.EventSlot;
 import de.qf0xb.raidsignupbot.domain.model.event.EventUtilityAssignment;
 import de.qf0xb.raidsignupbot.domain.model.event.EventTeam;
+import de.qf0xb.raidsignupbot.domain.model.guild.Guild;
 import de.qf0xb.raidsignupbot.domain.model.guild.GuildMember;
 import de.qf0xb.raidsignupbot.domain.model.template.EventRole;
 import de.qf0xb.raidsignupbot.domain.model.template.EventStrategy;
@@ -19,18 +21,19 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 
 @ApplicationScoped
 public class AppSetup {
   private final Logger logger;
   private final OrToolsTeamGeneratorService teamGeneratorService;
+  private final GuildApplicationPort guildApplicationPort;
 
   @Inject
-  public AppSetup(Logger logger, OrToolsTeamGeneratorService teamGeneratorService) {
+  public AppSetup(Logger logger, OrToolsTeamGeneratorService teamGeneratorService, GuildApplicationPort guildApplicationPort) {
     this.logger = logger;
     this.teamGeneratorService = teamGeneratorService;
+    this.guildApplicationPort = guildApplicationPort;
   }
 
   void onStart(@Observes StartupEvent ev) {
@@ -135,5 +138,11 @@ public class AppSetup {
     }
     result.unmatchedSignups().forEach(signup -> logger.info(signup.getGuildMember().getUserId()));
 
+
+    Guild guild = new Guild("test", "OC1", "none");
+    guild = guildApplicationPort.save(guild);
+
+    guild.setName("OC2");
+    guild = guildApplicationPort.save(guild);
   }
 }
