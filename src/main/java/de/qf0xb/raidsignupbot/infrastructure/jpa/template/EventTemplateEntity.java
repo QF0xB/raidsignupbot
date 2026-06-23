@@ -1,0 +1,34 @@
+package de.qf0xb.raidsignupbot.infrastructure.jpa.template;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.io.Serializable;
+import java.util.LinkedHashSet;
+import java.util.Set;
+
+@Getter
+@Setter
+@Entity
+@Table(name = "event_template")
+public class EventTemplateEntity implements Serializable {
+  private static final long serialVersionUID = 4152287054673818041L;
+
+  @Id
+  @Column(name = "template_key", nullable = false)
+  private String key;
+
+  @Column(name = "name", nullable = false)
+  private String name;
+
+  @Lob
+  @Column(name = "details", nullable = false)
+  private String details;
+
+  @Column(name = "emoji_slug", nullable = false)
+  private String emojiSlug;
+
+  @OneToMany(mappedBy = "eventTemplateEntity", cascade = CascadeType.ALL, orphanRemoval = true)
+  private Set<EventStrategyEntity> eventStrategies = new LinkedHashSet<>();
+}

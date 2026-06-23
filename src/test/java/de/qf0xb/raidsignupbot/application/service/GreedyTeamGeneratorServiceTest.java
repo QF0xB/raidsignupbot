@@ -1,7 +1,7 @@
 package de.qf0xb.raidsignupbot.application.service;
 
-import de.qf0xb.raidsignupbot.application.event.TeamGeneratorResult;
-import de.qf0xb.raidsignupbot.application.event.service.GreedyTeamGeneratorService;
+import de.qf0xb.raidsignupbot.application.TeamGeneratorResult;
+import de.qf0xb.raidsignupbot.application.service.generator.GreedyTeamGeneratorService;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
 import de.qf0xb.raidsignupbot.domain.model.event.EventTeam;
@@ -23,7 +23,7 @@ class GreedyTeamGeneratorServiceTest {
 
   @Test
   void buildsACompleteTeamForSimpleInput() {
-    EventTemplate template = new EventTemplate("temp", "Temp", "Details");
+    EventTemplate template = new EventTemplate("temp", "Temp", "Details", "test");
     EventStrategy strategy = new EventStrategy("strat", "Strategy");
     strategy.addRole(new EventRole("tank", "Tank", "shield", 1));
     strategy.addRole(new EventRole("healer", "Healer", "plus", 1));
@@ -31,7 +31,7 @@ class GreedyTeamGeneratorServiceTest {
 
     Event event = Event.builder()
         .id(1L)
-        .guild(new Guild("guild-1", "Guild", "raider"))
+        .guild(new Guild("guild-1", "Guild"))
         .hoster(new GuildMember("hoster"))
         .template(template)
         .build();
@@ -51,7 +51,7 @@ class GreedyTeamGeneratorServiceTest {
 
   @Test
   void utilityIsAssignedToExistingPrimaryMember() {
-    EventTemplate template = new EventTemplate("temp", "Temp", "Details");
+    EventTemplate template = new EventTemplate("temp", "Temp", "Details", "test");
     EventStrategy strategy = new EventStrategy("strat", "Strategy");
     EventRole tank = new EventRole("tank", "Tank", "shield", 1);
     EventUtilityRole flex = new EventUtilityRole("flex", "Flex", "wrench", 1);
@@ -62,7 +62,7 @@ class GreedyTeamGeneratorServiceTest {
 
     Event event = Event.builder()
         .id(1L)
-        .guild(new Guild("guild-1", "Guild", "raider"))
+        .guild(new Guild("guild-1", "Guild"))
         .hoster(new GuildMember("hoster"))
         .template(template)
         .build();

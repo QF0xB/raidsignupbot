@@ -1,12 +1,12 @@
 package de.qf0xb.raidsignupbot.infrastructure.mapper.jpa;
 
 import de.qf0xb.raidsignupbot.domain.model.guild.Guild;
-import de.qf0xb.raidsignupbot.infrastructure.jpa.GuildEntity;
+import de.qf0xb.raidsignupbot.infrastructure.jpa.guild.GuildEntity;
 import org.mapstruct.*;
 
 @Mapper(
     unmappedTargetPolicy = ReportingPolicy.IGNORE,
-    componentModel = MappingConstants.ComponentModel.CDI)
+    componentModel = MappingConstants.ComponentModel.JAKARTA_CDI)
 public interface GuildEntityMapper extends JpaEntityMapper<GuildEntity, Guild>{
   GuildEntity toEntity(Guild guild);
 

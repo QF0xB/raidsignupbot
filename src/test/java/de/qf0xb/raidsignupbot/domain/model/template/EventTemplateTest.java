@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class EventTemplateTest {
   @Test
   void canFindAndRequireStrategiesByKey() {
-    EventTemplate template = new EventTemplate("temp", "temp", "temp");
+    EventTemplate template = new EventTemplate("temp", "temp", "temp", "test");
     EventStrategy strategy = new EventStrategy("strat", "Strategy");
     template.addStrategy(strategy);
 
@@ -18,7 +18,7 @@ class EventTemplateTest {
 
   @Test
   void requireStrategyFailsForUnknownKey() {
-    EventTemplate template = new EventTemplate("temp", "temp", "temp");
+    EventTemplate template = new EventTemplate("temp", "temp", "temp", "test");
 
     assertThrows(IllegalStateException.class, () -> template.requireStrategy("missing"));
   }

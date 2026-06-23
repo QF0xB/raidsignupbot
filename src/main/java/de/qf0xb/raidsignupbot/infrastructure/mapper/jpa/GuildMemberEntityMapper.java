@@ -1,17 +1,52 @@
 package de.qf0xb.raidsignupbot.infrastructure.mapper.jpa;
 
+import de.qf0xb.raidsignupbot.domain.model.guild.Guild;
 import de.qf0xb.raidsignupbot.domain.model.guild.GuildMember;
-import de.qf0xb.raidsignupbot.infrastructure.jpa.GuildMemberEntity;
-import org.mapstruct.*;
+import de.qf0xb.raidsignupbot.infrastructure.jpa.guild.GuildMemberEntity;
+import jakarta.inject.Inject;
+import org.mapstruct.AfterMapping;
+import org.mapstruct.BeanMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingConstants;
+import org.mapstruct.MappingTarget;
+import org.mapstruct.NullValuePropertyMappingStrategy;
+import org.mapstruct.ReportingPolicy;
 
 @Mapper(
-    componentModel = MappingConstants.ComponentModel.JAKARTA_CDI)
-public interface GuildMemberEntityMapper extends JpaEntityMapper<GuildMemberEntity, GuildMember> {
+    unmappedTargetPolicy = ReportingPolicy.IGNORE,
+    componentModel = MappingConstants.ComponentModel.JAKARTA_CDI,
+    uses = GuildEntityMapper.class)
+public abstract class GuildMemberEntityMapper implements JpaEntityMapper<GuildMemberEntity, GuildMember> {
+  @Inject
+  GuildEntityMapper guildEntityMapper;
 
-  GuildMemberEntity toEntity(GuildMember guildMember);
+  @Override
+  @Mapping(target = "activeGuilds", ignore = true)
+  public abstract GuildMemberEntity toEntity(GuildMember guildMember);
 
-  GuildMember toDomain(GuildMemberEntity guildMemberEntity);
+  @Override
+  @Mapping(target = "activeGuilds", ignore = true)
+  public abstract GuildMember toDomain(GuildMemberEntity guildMemberEntity);
 
-  GuildMemberEntity partialUpdate(
+  @Override
+  @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+  @Mapping(target = "activeGuilds", ignore = true)
+  public abstract GuildMemberEntity partialUpdate(
       GuildMember guildMember, @MappingTarget GuildMemberEntity guildMemberEntity);
+
+  @AfterMapping
+  protected void copyActiveGuilds(GuildMember source, @MappingTarget GuildMemberEntity target) {
+    target.getActiveGuilds().clear();
+    for (Guild guild : source.getActiveGuilds()) {
+      target.getActiveGuilds().add(guildEntityMapper.toEntity(guild));
+    }
+  }
+
+  @AfterMapping
+  protected void copyActiveGuilds(GuildMemberEntity source, @MappingTarget GuildMember target) {
+    for (Guild guild : source.getActiveGuilds().stream().map(guildEntityMapper::toDomain).toList()) {
+      target.addActiveGuild(guild);
+    }
+  }
 }

@@ -12,7 +12,6 @@ import java.util.Set;
 @Getter
 @Setter
 @EqualsAndHashCode(of = "key")
-@RequiredArgsConstructor
 @ToString
 public class EventStrategy {
   private final String key;

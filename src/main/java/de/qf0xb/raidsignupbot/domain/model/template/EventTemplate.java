@@ -15,6 +15,8 @@ public class EventTemplate {
   private String name;
   private String details;
 
+  private String emojiSlug;
+
   @Getter(AccessLevel.NONE)
   private final Set<EventStrategy> strategies = new LinkedHashSet<>();
 
@@ -37,5 +39,9 @@ public class EventTemplate {
 
   public Set<EventStrategy> getStrategies() {
     return Collections.unmodifiableSet(strategies);
+  }
+
+  public Optional<EventStrategy> getStrategy(String strategyKey) {
+    return strategies.stream().filter(strategy -> strategy.getKey().equals(strategyKey)).findFirst();
   }
 }

@@ -35,7 +35,7 @@ public class GuildMember {
     activeGuilds.remove(guild);
   }
 
-  public void increaasePriority() {
+  public void increasePriority() {
     priority++;
   }
 

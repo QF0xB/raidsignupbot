@@ -17,9 +17,12 @@ public class Guild {
 
   private boolean eventTemplatesEnabled = true;
 
-  public Guild(String guildId, String name, String raiderRoleId) {
+  private boolean manageEventChannels = true;
+
+  private String eventRoleId;
+
+  public Guild(String guildId, String name) {
     this.guildId = guildId;
     this.name = name;
-    this.raiderRoleId = raiderRoleId;
   }
 }

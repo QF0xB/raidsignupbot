@@ -9,7 +9,7 @@ class GuildMemberTest {
   @Test
   void managesActiveGuildsThroughMethodsOnly() {
     GuildMember member = new GuildMember("user-1");
-    Guild guild = new Guild("guild-1", "Guild", "raider");
+    Guild guild = new Guild("guild-1", "Guild");
 
     member.addActiveGuild(guild);
 
@@ -25,8 +25,8 @@ class GuildMemberTest {
   void priorityResetsWhenAssigned() {
     GuildMember member = new GuildMember("user-1");
 
-    member.increaasePriority();
-    member.increaasePriority();
+    member.increasePriority();
+    member.increasePriority();
     member.assignedRole();
 
     assertEquals(0L, member.getPriority());

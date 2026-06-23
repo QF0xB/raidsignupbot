@@ -1,7 +1,7 @@
 package de.qf0xb.raidsignupbot.application.service;
 
-import de.qf0xb.raidsignupbot.application.event.TeamGeneratorResult;
-import de.qf0xb.raidsignupbot.application.event.service.ExactTeamGeneratorService;
+import de.qf0xb.raidsignupbot.application.TeamGeneratorResult;
+import de.qf0xb.raidsignupbot.application.service.generator.ExactTeamGeneratorService;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
 import de.qf0xb.raidsignupbot.domain.model.event.EventTeam;
@@ -27,7 +27,7 @@ class TeamGeneratorServiceTest {
   void returnsNoTeamsWhenTemplateIsMissing() {
     Event event = Event.builder()
         .id(1L)
-        .guild(new Guild("guild-1", "Guild", "raider"))
+        .guild(new Guild("guild-1", "Guild"))
         .hoster(new GuildMember("hoster"))
         .template(null)
         .build();
@@ -42,7 +42,7 @@ class TeamGeneratorServiceTest {
 
   @Test
   void buildsACompleteTeamFromPrimaryAndUtilitySignups() {
-    EventTemplate template = new EventTemplate("temp", "Temp", "Details");
+    EventTemplate template = new EventTemplate("temp", "Temp", "Details", "test");
     EventStrategy strategy = new EventStrategy("strat", "Strategy");
     EventRole tank = new EventRole("tank", "Tank", "shield", 1);
     EventUtilityRole flex = new EventUtilityRole("flex", "Flex", "wrench", 1);
@@ -53,7 +53,7 @@ class TeamGeneratorServiceTest {
 
     Event event = Event.builder()
         .id(1L)
-        .guild(new Guild("guild-1", "Guild", "raider"))
+        .guild(new Guild("guild-1", "Guild"))
         .hoster(new GuildMember("hoster"))
         .template(template)
         .build();
@@ -81,7 +81,7 @@ class TeamGeneratorServiceTest {
 
   @Test
   void returnsNoTeamsWhenHosterSignsUpButCannotBePlaced() {
-    EventTemplate template = new EventTemplate("temp", "Temp", "Details");
+    EventTemplate template = new EventTemplate("temp", "Temp", "Details", "test");
     EventStrategy strategy = new EventStrategy("strat", "Strategy");
     strategy.addRole(new EventRole("tank", "Tank", "shield", 1));
     template.addStrategy(strategy);
@@ -89,7 +89,7 @@ class TeamGeneratorServiceTest {
     GuildMember hoster = new GuildMember("hoster");
     Event event = Event.builder()
         .id(1L)
-        .guild(new Guild("guild-1", "Guild", "raider"))
+        .guild(new Guild("guild-1", "Guild"))
         .hoster(hoster)
         .template(template)
         .build();

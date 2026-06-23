@@ -2,28 +2,28 @@ package de.qf0xb.raidsignupbot.infrastructure.adapter.out.jpa;
 
 import de.qf0xb.raidsignupbot.infrastructure.mapper.jpa.JpaEntityMapper;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
-import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import lombok.Getter;
 
-@Getter
-abstract class AbstractJpaApplicationAdapter<ID, D, E, M extends JpaEntityMapper<E, D>, R extends PanacheRepositoryBase<E, ID>> {
-  @Inject
-  M mapper;
+public abstract class AbstractJpaApplicationAdapter<ID, D, E, M extends JpaEntityMapper<E, D>, R extends PanacheRepositoryBase<E, ID>> {
+  protected abstract M getMapper();
 
-  @Inject
-  R repository;
+  protected abstract R getRepository();
 
   @Transactional
   public D save(ID id, D domain) {
-    E entity = repository.findByIdOptional(id)
-        .orElseGet(() -> {
-          E newEntity = mapper.toEntity(domain);
-          repository.persist(newEntity);
-          return newEntity;
-        });
+    E entity = id == null
+        ? null
+        : getRepository().findByIdOptional(id).orElse(null);
 
-    entity = mapper.partialUpdate(domain, entity);
-    return mapper.toDomain(entity);
+    if (entity == null) {
+      E newEntity = getMapper().toEntity(domain);
+      getRepository().persist(newEntity);
+      return getMapper().toDomain(newEntity);
+    }
+
+    entity = getMapper().partialUpdate(domain, entity);
+    return getMapper().toDomain(entity);
   }
+
+  public abstract E partialUpdate(D domain, E entity);
 }

@@ -1,7 +1,7 @@
 package de.qf0xb.raidsignupbot.application.service;
 
-import de.qf0xb.raidsignupbot.application.event.TeamGeneratorResult;
-import de.qf0xb.raidsignupbot.application.event.service.OrToolsTeamGeneratorService;
+import de.qf0xb.raidsignupbot.application.TeamGeneratorResult;
+import de.qf0xb.raidsignupbot.application.service.generator.OrToolsTeamGeneratorService;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
 import de.qf0xb.raidsignupbot.domain.model.event.EventTeam;
@@ -25,7 +25,7 @@ class OrToolsTeamGeneratorServiceTest {
 
   @Test
   void buildsACompleteTeamFromPrimaryAndUtilitySignups() {
-    EventTemplate template = new EventTemplate("temp", "Temp", "Details");
+    EventTemplate template = new EventTemplate("temp", "Temp", "Details", "test");
     EventStrategy strategy = new EventStrategy("strat", "Strategy");
     EventRole tank = new EventRole("tank", "Tank", "shield", 1);
     EventUtilityRole flex = new EventUtilityRole("flex", "Flex", "wrench", 1);
@@ -36,7 +36,7 @@ class OrToolsTeamGeneratorServiceTest {
 
     Event event = Event.builder()
         .id(1L)
-        .guild(new Guild("guild-1", "Guild", "raider"))
+        .guild(new Guild("guild-1", "Guild"))
         .hoster(new GuildMember("hoster"))
         .template(template)
         .build();
@@ -61,7 +61,7 @@ class OrToolsTeamGeneratorServiceTest {
 
   @Test
   void buildsFourTeamsForMixedStormAndMythSignups() {
-    EventTemplate template = new EventTemplate("takanobu", "Takanobu", "Takanobu details");
+    EventTemplate template = new EventTemplate("takanobu", "Takanobu", "Takanobu details", "test");
     EventStrategy storm = new EventStrategy("storm", "Storm Strategy");
     storm.addRole(new EventRole("one", "Potent Feint", ":one:", 1));
     storm.addRole(new EventRole("two", "Sharpened Elemental Blade", ":two:", 1));
@@ -83,7 +83,7 @@ class OrToolsTeamGeneratorServiceTest {
 
     Event event = Event.builder()
         .id(1L)
-        .guild(new Guild("guild-1", "Guild", "raider"))
+        .guild(new Guild("guild-1", "Guild"))
         .hoster(new GuildMember("hoster"))
         .template(template)
         .build();
@@ -121,7 +121,7 @@ class OrToolsTeamGeneratorServiceTest {
 
   @Test
   void doesNotDropValidTeamsWhenHosterCannotBePlaced() {
-    EventTemplate template = new EventTemplate("temp", "Temp", "Details");
+    EventTemplate template = new EventTemplate("temp", "Temp", "Details", "test");
     EventStrategy strategy = new EventStrategy("strat", "Strategy");
     strategy.addRole(new EventRole("tank", "Tank", "shield", 1));
     template.addStrategy(strategy);
@@ -129,7 +129,7 @@ class OrToolsTeamGeneratorServiceTest {
     GuildMember hoster = new GuildMember("hoster");
     Event event = Event.builder()
         .id(1L)
-        .guild(new Guild("guild-1", "Guild", "raider"))
+        .guild(new Guild("guild-1", "Guild"))
         .hoster(hoster)
         .template(template)
         .build();
@@ -149,7 +149,7 @@ class OrToolsTeamGeneratorServiceTest {
 
   @Test
   void rejectsTeamsThatCannotCoverRequiredUtility() {
-    EventTemplate template = new EventTemplate("temp", "Temp", "Details");
+    EventTemplate template = new EventTemplate("temp", "Temp", "Details", "test");
     EventStrategy strategy = new EventStrategy("strat", "Strategy");
     strategy.addRole(new EventRole("tank", "Tank", "shield", 1));
     EventUtilityRole hex = new EventUtilityRole("hex", "Hex", ":schoolSun-1:", 1);
@@ -159,7 +159,7 @@ class OrToolsTeamGeneratorServiceTest {
 
     Event event = Event.builder()
         .id(1L)
-        .guild(new Guild("guild-1", "Guild", "raider"))
+        .guild(new Guild("guild-1", "Guild"))
         .hoster(new GuildMember("hoster"))
         .template(template)
         .build();
@@ -176,7 +176,7 @@ class OrToolsTeamGeneratorServiceTest {
 
   @Test
   void generatesLargeMixedRaidWithUtilities() {
-    EventTemplate template = new EventTemplate("large-test", "Large Test Raid", "Stress test");
+    EventTemplate template = new EventTemplate("large-test", "Large Test Raid", "Stress test", "test");
 
     EventStrategy storm = new EventStrategy("storm", "Storm Strategy");
     storm.addRole(new EventRole("one", "Potent Feint", ":one:", 1));

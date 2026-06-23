@@ -1,0 +1,22 @@
+package de.qf0xb.raidsignupbot.application.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+import java.io.Serializable;
+
+@RequiredArgsConstructor
+@Builder
+@Getter
+@AllArgsConstructor
+public class CreateGuildCommand {
+  private String guildId;
+  private String name;
+
+  @Builder.Default private boolean adminBot = false;
+  @Builder.Default private boolean raiderRolesEnabled = true;
+  private String raiderRoleId;
+  @Builder.Default private boolean eventTemplatesEnabled = true;
+}

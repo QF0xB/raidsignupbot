@@ -14,9 +14,9 @@ class EventTest {
   void managesTeamsAndSignupState() {
     Event event = Event.builder()
         .id(1L)
-        .guild(new Guild("guild-1", "Guild", "raider"))
+        .guild(new Guild("guild-1", "Guild"))
         .hoster(new GuildMember("hoster"))
-        .template(new EventTemplate("temp", "Template", "Details"))
+        .template(new EventTemplate("temp", "Template", "Details", "test"))
         .build();
     EventTeam team = new EventTeam(new de.qf0xb.raidsignupbot.domain.model.template.EventStrategy("strat", "Strategy"));
 
@@ -24,10 +24,12 @@ class EventTest {
 
     assertEquals(1, event.getTeams().size());
     assertTrue(event.isSignupOpen());
+    assertFalse(event.isTeamsGenerated());
 
     event.closeSignup();
 
     assertFalse(event.isSignupOpen());
+    assertTrue(event.isTeamsGenerated());
     event.removeTeam(team);
     assertEquals(0, event.getTeams().size());
   }

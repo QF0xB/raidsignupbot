@@ -2,7 +2,6 @@
 .devenv
 .direnv
 
-
 #Maven
 target/
 pom.xml.tag
