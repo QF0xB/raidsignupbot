@@ -8,6 +8,7 @@ import java.util.List;
 public interface EventUIApplicationPort {
   void addEvent(Event event);
   List<EventMemberSignup> closeSignup(Event event);
+  void publishTeams(Event event);
   void deleteEvent(Event event);
 
 }
