@@ -3,49 +3,184 @@ package de.qf0xb.raidsignupbot.application.service.event;
 import de.qf0xb.raidsignupbot.application.TeamGeneratorResult;
 import de.qf0xb.raidsignupbot.application.dto.CreateEventCommand;
 import de.qf0xb.raidsignupbot.application.port.EventApplicationPort;
+import de.qf0xb.raidsignupbot.application.port.EventUIApplicationPort;
 import de.qf0xb.raidsignupbot.application.port.template.EventTemplateApplicationPort;
 import de.qf0xb.raidsignupbot.application.service.generator.OrToolsTeamGeneratorService;
 import de.qf0xb.raidsignupbot.application.service.guild.GuildMemberService;
 import de.qf0xb.raidsignupbot.application.service.guild.GuildService;
+import de.qf0xb.raidsignupbot.application.service.server.ServerService;
 import de.qf0xb.raidsignupbot.application.service.template.TemplateService;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
-import de.qf0xb.raidsignupbot.domain.model.template.EventTemplate;
+import de.qf0xb.raidsignupbot.domain.model.guild.Guild;
+import de.qf0xb.raidsignupbot.domain.model.guild.GuildMember;
+import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.adapter.DiscordEventUIApplicationAdapter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 
+@Slf4j
 @ApplicationScoped
 public class EventService {
   private final EventApplicationPort eventApplicationPort;
   private final GuildService guildService;
+  private final ServerService serverService;
   private final GuildMemberService guildMemberService;
   private final TemplateService templateService;
   private final OrToolsTeamGeneratorService teamGeneratorService = new OrToolsTeamGeneratorService();
+  private final EventUIApplicationPort eventUIApplicationPort;
 
-  public EventService(EventTemplateApplicationPort eventTemplateApplicationPort, EventApplicationPort eventApplicationPort, GuildService guildService, GuildMemberService guildMemberService, TemplateService templateService) {
+  public EventService(
+      EventApplicationPort eventApplicationPort,
+      GuildService guildService,
+      ServerService serverService,
+      GuildMemberService guildMemberService,
+      TemplateService templateService,
+      EventUIApplicationPort eventUIApplicationPort) {
     this.eventApplicationPort = eventApplicationPort;
     this.guildService = guildService;
+    this.serverService = serverService;
     this.guildMemberService = guildMemberService;
     this.templateService = templateService;
+    this.eventUIApplicationPort = eventUIApplicationPort;
   }
 
   @Transactional
   public Event createEvent(CreateEventCommand command) {
+    Guild guild = guildService.findGuildByServerIdAndName(command.getServerId(), command.getGuildName());
+    boolean manageSignupChannels = serverService.findServerById(guild.getServerId()).isManageSignupChannels();
+    boolean manageVoiceChannels = serverService.findServerById(guild.getServerId()).isManageVoiceChannels();
     Event event =
         Event.builder()
-            .guild(guildService.findGuildById(command.getGuildId()))
+            .guild(guild)
             .hoster(guildMemberService.findGuildMemberById(command.getHosterUserId()))
             .donationPerWin(command.isDonationPerWin())
             .donation(command.getDonation())
             .start(command.getStart())
             .end(command.getEnd())
-            .template(templateService.findTemplateByKey(command.getTemplateKey()))
+            .template(templateService.findTemplateByKey(guild.getServerId(), command.getTemplateKey()))
             .categoryId(command.getCategoryId())
+            .voiceChannelId(command.getVoiceChannelId())
+            .signUpChannelId(command.getSignUpChannelId())
             .build();
 
+    if (manageSignupChannels || manageVoiceChannels) {
+      event.setCategoryId(command.getCategoryId());
+    }
+    if (!manageSignupChannels) {
+      event.setSignUpChannelId(command.getSignUpChannelId());
+    }
+    if (!manageVoiceChannels) {
+      event.setVoiceChannelId(command.getVoiceChannelId());
+    }
+
+    eventUIApplicationPort.addEvent(event);
     return eventApplicationPort.save(event);
+  }
+
+  @Transactional
+  public Event updateEvent(Long eventId, CreateEventCommand command) {
+    Event existingEvent = findEventById(eventId);
+    Guild guild = guildService.findGuildByServerIdAndName(command.getServerId(), command.getGuildName());
+    String categoryId = command.getCategoryId() != null ? command.getCategoryId() : existingEvent.getCategoryId();
+    String signUpChannelId = command.getSignUpChannelId() != null ? command.getSignUpChannelId() : existingEvent.getSignUpChannelId();
+    String voiceChannelId = command.getVoiceChannelId() != null ? command.getVoiceChannelId() : existingEvent.getVoiceChannelId();
+    Event updatedEvent =
+        Event.builder()
+            .id(existingEvent.getId())
+            .guild(guild)
+            .hoster(guildMemberService.findGuildMemberById(command.getHosterUserId()))
+            .donationPerWin(command.isDonationPerWin())
+            .donation(command.getDonation())
+            .start(command.getStart())
+            .end(command.getEnd())
+            .template(templateService.findTemplateByKey(guild.getServerId(), command.getTemplateKey()))
+            .categoryId(categoryId)
+            .voiceChannelId(voiceChannelId)
+            .signUpChannelId(signUpChannelId)
+            .messageId(existingEvent.getMessageId())
+            .teamsMessageId(existingEvent.getTeamsMessageId())
+            .build();
+
+    updatedEvent.setSignupOpen(existingEvent.isSignupOpen());
+    updatedEvent.setTeamsGenerated(existingEvent.isTeamsGenerated());
+    updatedEvent.setChannelsExist(existingEvent.isChannelsExist());
+    updatedEvent.setOneHourBeforeEmitted(existingEvent.isOneHourBeforeEmitted());
+    updatedEvent.setThirtyMinutesBeforeEmitted(existingEvent.isThirtyMinutesBeforeEmitted());
+    updatedEvent.setFifteenMinutesBeforeEmitted(existingEvent.isFifteenMinutesBeforeEmitted());
+    updatedEvent.setOneHourAfterEmitted(existingEvent.isOneHourAfterEmitted());
+    existingEvent.getTeams().forEach(updatedEvent::addTeam);
+
+    eventUIApplicationPort.updateEvent(existingEvent, updatedEvent);
+    if (updatedEvent.isTeamsGenerated() && !updatedEvent.getTeams().isEmpty()) {
+      eventUIApplicationPort.updateTeams(updatedEvent, new TeamGeneratorResult(updatedEvent.getTeams(), List.of()));
+    }
+    return eventApplicationPort.save(updatedEvent);
+  }
+
+  @Transactional
+  public Event swapTeamMembers(Long eventId, String leftUserId, String rightUserId) {
+    Event event = findEventById(eventId);
+    if (!event.isTeamsGenerated() || event.getTeams().isEmpty()) {
+      throw new IllegalStateException("Event teams have not been generated yet");
+    }
+
+    GuildMember leftMember = guildMemberService.findGuildMemberById(leftUserId);
+    GuildMember rightMember = guildMemberService.findGuildMemberById(rightUserId);
+    if (leftMember.getUserId().equals(rightMember.getUserId())) {
+      throw new IllegalArgumentException("Cannot swap the same member");
+    }
+
+    boolean leftAssigned = event.getTeams().stream().anyMatch(team -> team.containsMember(leftMember));
+    boolean rightAssigned = event.getTeams().stream().anyMatch(team -> team.containsMember(rightMember));
+
+    if (!leftAssigned && !rightAssigned) {
+      throw new IllegalStateException(
+          "Neither member is assigned to the generated teams for event " + event.getId());
+    }
+
+    int changedAssignments;
+    if (leftAssigned && rightAssigned) {
+      changedAssignments = event.getTeams().stream()
+          .mapToInt(team -> team.swapMembers(leftMember, rightMember))
+          .sum();
+    } else if (leftAssigned) {
+      changedAssignments = event.getTeams().stream()
+          .mapToInt(team -> team.replaceMember(leftMember, rightMember))
+          .sum();
+    } else {
+      changedAssignments = event.getTeams().stream()
+          .mapToInt(team -> team.replaceMember(rightMember, leftMember))
+          .sum();
+    }
+
+    if (changedAssignments == 0) {
+      throw new IllegalStateException("Swap or substitution did not change any assignments for event " + event.getId());
+    }
+
+    Event savedEvent = eventApplicationPort.save(event);
+    eventUIApplicationPort.updateTeams(savedEvent, new TeamGeneratorResult(savedEvent.getTeams(), List.of()));
+    return eventApplicationPort.save(savedEvent);
+  }
+
+  @Transactional
+  public Event removeSignupAndRegenerateTeams(Long eventId, String userId) {
+    Event event = findEventById(eventId);
+    if (event.getMessageId() == null) {
+      throw new IllegalStateException("Event does not have a signup message yet");
+    }
+
+    eventUIApplicationPort.removeSignup(event, userId);
+    event.closeSignup();
+    List<EventMemberSignup> signups = eventUIApplicationPort.closeSignup(event);
+    event.clearTeams();
+
+    TeamGeneratorResult results = generateTeams(event, signups);
+    Event savedEvent = eventApplicationPort.save(event);
+    eventUIApplicationPort.updateTeams(savedEvent, results);
+    return eventApplicationPort.save(savedEvent);
   }
 
   @Transactional
@@ -56,12 +191,31 @@ public class EventService {
     }
     event.closeSignup();
 
+    if (signups == null) {
+      log.info("Generating teams for event {}: Signups not provided, generating all signups", event.getId());
+      signups = eventUIApplicationPort.closeSignup(event);
+    }
+
+    log.info("Generated teams for event {}: {}", event.getId(), signups);
+
+    TeamGeneratorResult results = generateTeams(event, signups);
+    event = eventApplicationPort.save(event);
+
+    eventUIApplicationPort.publishTeams(event, results);
+    event = eventApplicationPort.save(event);
+
+    return event;
+  }
+
+  @Transactional
+  public TeamGeneratorResult generateTeams(Event event, List<EventMemberSignup> signups) {
     TeamGeneratorResult results = teamGeneratorService.generateTeams(event, signups);
     results.teams().forEach(event::addTeam);
     results.unmatchedSignups().forEach(eventMemberSignup -> {
       guildMemberService.couldNotFindRole(eventMemberSignup.getGuildMember().getUserId());
     });
-    return eventApplicationPort.save(event);
+
+    return results;
   }
 
   public Event findEventById(Long eventId) {

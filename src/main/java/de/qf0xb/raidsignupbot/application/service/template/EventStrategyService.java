@@ -19,22 +19,22 @@ public class EventStrategyService {
 
 
   @Transactional
-  public EventTemplate addStrategy(String templateKey, String strategyKey, String name) {
-    EventTemplate template = templateService.findTemplateByKey(templateKey);
+  public EventTemplate addStrategy(String serverId, String templateKey, String strategyKey, String name) {
+    EventTemplate template = templateService.findTemplateByKey(serverId, templateKey);
     template.addStrategy(new EventStrategy(strategyKey, name));
     return templateService.save(template);
   }
 
   @Transactional
-  public EventTemplate removeStrategy(String templateKey, String strategyKey) {
-    EventTemplate template = templateService.findTemplateByKey(templateKey);
+  public EventTemplate removeStrategy(String serverId, String templateKey, String strategyKey) {
+    EventTemplate template = templateService.findTemplateByKey(serverId, templateKey);
     template.removeStrategy(strategyKey);
     return templateService.save(template);
   }
 
   @Transactional
-  public EventTemplate addPrimaryRole(String templateKey, String strategyKey, String roleKey, String name, String emojiSlug, int requiredCount) {
-    EventTemplate template = templateService.findTemplateByKey(templateKey);
+  public EventTemplate addPrimaryRole(String serverId, String templateKey, String strategyKey, String roleKey, String name, String emojiSlug, int requiredCount) {
+    EventTemplate template = templateService.findTemplateByKey(serverId, templateKey);
     EventStrategy strategy = template.getStrategy(strategyKey).orElseThrow(
         () -> new IllegalArgumentException("Strategy with key " + strategyKey + " not found")
     );
@@ -44,8 +44,8 @@ public class EventStrategyService {
   }
 
   @Transactional
-  public EventTemplate addUtilityRole(String templateKey, String strategyKey, String roleKey, String name, String emojiSlug, int requiredCount, Set<String> eligiblePrimaryRoleKeys) {
-    EventTemplate template = templateService.findTemplateByKey(templateKey);
+  public EventTemplate addUtilityRole(String serverId, String templateKey, String strategyKey, String roleKey, String name, String emojiSlug, int requiredCount, Set<String> eligiblePrimaryRoleKeys) {
+    EventTemplate template = templateService.findTemplateByKey(serverId, templateKey);
     EventStrategy strategy = template.getStrategy(strategyKey).orElseThrow(
         () -> new IllegalArgumentException("Strategy with key " + strategyKey + " not found")
     );
@@ -57,8 +57,8 @@ public class EventStrategyService {
   }
 
   @Transactional
-  public EventTemplate removeRole(String templateKey, String strategyKey, String roleKey) {
-    EventTemplate template = templateService.findTemplateByKey(templateKey);
+  public EventTemplate removeRole(String serverId, String templateKey, String strategyKey, String roleKey) {
+    EventTemplate template = templateService.findTemplateByKey(serverId, templateKey);
     EventStrategy strategy = template.getStrategy(strategyKey).orElseThrow(
         () -> new IllegalArgumentException("Strategy with key " + strategyKey + " not found")
     );

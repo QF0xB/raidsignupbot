@@ -2,8 +2,11 @@ package de.qf0xb.raidsignupbot.infrastructure.mapper.jpa;
 
 import de.qf0xb.raidsignupbot.domain.model.template.EventStrategy;
 import de.qf0xb.raidsignupbot.domain.model.template.EventTemplate;
+import de.qf0xb.raidsignupbot.infrastructure.jpa.server.ServerEntity;
+import de.qf0xb.raidsignupbot.infrastructure.jpa.server.ServerEntityRepository;
 import de.qf0xb.raidsignupbot.infrastructure.jpa.template.EventStrategyEntity;
 import de.qf0xb.raidsignupbot.infrastructure.jpa.template.EventTemplateEntity;
+import jakarta.inject.Inject;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
@@ -23,31 +26,42 @@ import java.util.Set;
     componentModel = MappingConstants.ComponentModel.JAKARTA_CDI,
     uses = EventStrategyEntityMapper.class)
 public abstract class EventTemplateEntityMapper implements JpaEntityMapper<EventTemplateEntity, EventTemplate> {
-  @jakarta.inject.Inject
+  @Inject
   EventStrategyEntityMapper eventStrategyEntityMapper;
+
+  @Inject
+  ServerEntityRepository serverEntityRepository;
 
   @Override
   @Mapping(target = "eventStrategies", ignore = true)
+  @Mapping(target = "server", ignore = true)
   public abstract EventTemplateEntity toEntity(EventTemplate eventTemplate);
 
   @Override
   @Mapping(target = "strategies", ignore = true)
+  @Mapping(target = "server", ignore = true)
+  @Mapping(target = "serverId", source = "server.serverId")
   public abstract EventTemplate toDomain(EventTemplateEntity eventTemplateEntity);
 
   @Override
   @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
   @Mapping(target = "eventStrategies", ignore = true)
+  @Mapping(target = "server", ignore = true)
   public abstract EventTemplateEntity partialUpdate(
       EventTemplate eventTemplate, @MappingTarget EventTemplateEntity eventTemplateEntity);
 
   @AfterMapping
   protected void populateEntity(EventTemplate source, @MappingTarget EventTemplateEntity target) {
+    target.setServer(resolveServer(source));
     target.setEmojiSlug(source.getEmojiSlug());
     syncStrategies(target, source);
   }
 
   @AfterMapping
   protected void populateDomain(EventTemplateEntity source, @MappingTarget EventTemplate target) {
+    if (source.getServer() != null) {
+      target.setServerId(source.getServer().getServerId());
+    }
     target.setEmojiSlug(source.getEmojiSlug());
     source.getEventStrategies().stream()
         .map(eventStrategyEntityMapper::toDomain)
@@ -85,5 +99,14 @@ public abstract class EventTemplateEntityMapper implements JpaEntityMapper<Event
 
     updated.setEventTemplateEntity(eventTemplateEntity);
     return updated;
+  }
+
+  private ServerEntity resolveServer(EventTemplate source) {
+    if (source.getServer() == null) {
+      return null;
+    }
+
+    return serverEntityRepository.findByIdOptional(source.getServerId())
+        .orElseThrow(() -> new IllegalArgumentException("Server with id " + source.getServerId() + " not found"));
   }
 }

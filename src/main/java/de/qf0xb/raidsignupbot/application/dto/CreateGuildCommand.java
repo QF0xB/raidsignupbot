@@ -12,11 +12,12 @@ import java.io.Serializable;
 @Getter
 @AllArgsConstructor
 public class CreateGuildCommand {
-  private String guildId;
   private String name;
+  private String serverId;
 
   @Builder.Default private boolean adminBot = false;
   @Builder.Default private boolean raiderRolesEnabled = true;
   private String raiderRoleId;
   @Builder.Default private boolean eventTemplatesEnabled = true;
+  private String eventRoleId;
 }

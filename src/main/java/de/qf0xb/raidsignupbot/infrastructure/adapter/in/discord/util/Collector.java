@@ -1,15 +1,18 @@
-package de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord;
+package de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.util;
 
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
+import de.qf0xb.raidsignupbot.domain.model.guild.GuildMember;
 import de.qf0xb.raidsignupbot.domain.model.template.EventRole;
 import de.qf0xb.raidsignupbot.domain.model.template.EventStrategy;
-import de.qf0xb.raidsignupbot.domain.model.guild.GuildMember;
+import de.qf0xb.raidsignupbot.application.port.guild.GuildMemberApplicationPort;
+import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.util.MessageFactory;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
-import net.dv8tion.jda.api.entities.emoji.Emoji;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -17,17 +20,20 @@ import java.util.List;
 import java.util.Map;
 
 @ApplicationScoped
-public class DiscordSignupCollector {
-  private final DiscordBot bot;
-  private final DiscordEmojiResolver emojiResolver;
+public class Collector {
+  @Inject
+  JDA api;
 
-  public DiscordSignupCollector(DiscordBot bot, DiscordEmojiResolver emojiResolver) {
-    this.bot = bot;
-    this.emojiResolver = emojiResolver;
-  }
+  @Inject
+  MessageFactory messageFactory;
+  @Inject
+  DiscordEmojiResolver discordEmojiResolver;
+
+  @Inject
+  GuildMemberApplicationPort guildMemberApplicationPort;
 
   public List<EventMemberSignup> collect(Event event) {
-    TextChannel channel = bot.requireApi().getTextChannelById(event.getSignUpChannelId());
+    TextChannel channel = api.getTextChannelById(event.getSignUpChannelId());
     if (channel == null) {
       throw new IllegalStateException(String.format("TextChannel %s of Event %s does not exist.", event.getSignUpChannelId(), event.getId()));
     }
@@ -48,21 +54,20 @@ public class DiscordSignupCollector {
     return new ArrayList<>(signupsByUserId.values());
   }
 
-  private void collectRoleReactions(
-      Message signUp,
-      Map<String, EventMemberSignup> signupsByUserId,
-      EventRole role) {
-    signUp.retrieveReactionUsers(emojiResolver.resolve(role.getEmojiSlug()))
+  private void collectRoleReactions(Message signUp, Map<String, EventMemberSignup> signupsByUserId, EventRole role) {
+    signUp.retrieveReactionUsers(discordEmojiResolver.resolve(role.getEmojiSlug()))
         .complete()
         .stream()
-        .map(user -> user.getId())
-        .filter(userId -> !bot.requireApi().getSelfUser().getId().equals(userId))
-        .forEach(userId -> {
-          EventMemberSignup signup =
-              signupsByUserId.computeIfAbsent(
-                  userId,
-                  ignored -> new EventMemberSignup(new GuildMember(userId)));
-          signup.addRoleKey(role.getKey());
-        });
+        .map(User::getId)
+        .filter(userId -> !api.getSelfUser().getId().equals(userId))
+        .forEach(userId -> guildMemberApplicationPort.findByUserId(userId)
+            .ifPresent(guildMember -> {
+              EventMemberSignup signup =
+                  signupsByUserId.computeIfAbsent(
+                      userId,
+                      ignored -> new EventMemberSignup(guildMember)
+                  );
+              signup.addRoleKey(role.getKey());
+            }));
   }
 }

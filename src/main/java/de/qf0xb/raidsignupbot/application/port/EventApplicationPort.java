@@ -10,5 +10,6 @@ public interface EventApplicationPort {
   Set<Event> findAllUpcomingEvents();
   Set<Event> findAllChannelExistingEvents();
   Set<Event> findByTemplateKey(String templateKey);
+  Optional<Event> findByChannelId(String channelId);
   Event save(Event event);
 }

@@ -13,7 +13,7 @@ public class DiscordConfig {
   @ConfigProperty(name = "discord.application-id")
   Optional<String> applicationId;
 
-  @ConfigProperty(name = "discord.guild-id")
+  @ConfigProperty(name = "discord.dev.guild-id")
   Optional<String> guildId;
 
   public Optional<String> getToken() {

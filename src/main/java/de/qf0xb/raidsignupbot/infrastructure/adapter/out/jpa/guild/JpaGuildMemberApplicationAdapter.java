@@ -47,7 +47,7 @@ public class JpaGuildMemberApplicationAdapter
             select distinct member
             from GuildMemberEntity member
             join member.activeGuilds guild
-            where guild.guildId = ?1
+            where guild.id = ?1
             """,
             guildId)
         .list()

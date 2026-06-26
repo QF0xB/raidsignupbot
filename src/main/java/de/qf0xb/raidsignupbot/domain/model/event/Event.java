@@ -29,6 +29,8 @@ public class Event {
   @Setter
   private String messageId;
   @Setter
+  private String teamsMessageId;
+  @Setter
   private String voiceChannelId;
 
   @Setter
@@ -80,6 +82,10 @@ public class Event {
 
   public void removeTeam(EventTeam team) {
     teams.remove(team);
+  }
+
+  public void clearTeams() {
+    teams.clear();
   }
 
   public void closeSignup() {

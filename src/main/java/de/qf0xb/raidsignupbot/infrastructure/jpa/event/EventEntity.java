@@ -41,6 +41,9 @@ public class EventEntity implements Serializable {
   @Column(name = "message_id")
   private String messageId;
 
+  @Column(name = "teams_message_id")
+  private String teamsMessageId;
+
   @Column(name = "voice_channel_id")
   private String voiceChannelId;
 

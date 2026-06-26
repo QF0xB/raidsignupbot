@@ -4,6 +4,7 @@ import de.qf0xb.raidsignupbot.domain.model.guild.GuildMember;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 
 import java.util.HashSet;
 import java.util.Collections;
@@ -11,6 +12,7 @@ import java.util.Set;
 
 @Getter
 @RequiredArgsConstructor
+@ToString
 public class EventMemberSignup {
   private final GuildMember guildMember;
   @Getter(AccessLevel.NONE)

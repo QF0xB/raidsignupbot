@@ -37,6 +37,14 @@ public class EventTeam {
     slot.assign(member);
   }
 
+  public EventSlot findAssignedPrimarySlotFor(GuildMember member) {
+    return slots.stream()
+        .filter(EventSlot::isAssigned)
+        .filter(slot -> sameMember(slot.getMember(), member))
+        .findFirst()
+        .orElseThrow(() -> new IllegalStateException("Member is not assigned to a primary slot"));
+  }
+
   public void assignUtility(String utilityRoleKey, GuildMember member) {
     EventSlot primarySlot = assignedPrimarySlotFor(member);
     EventUtilityAssignment utilityAssignment = utilityAssignments.stream()
@@ -48,6 +56,71 @@ public class EventTeam {
         .orElseThrow(() -> new IllegalStateException("No free utility assignment for role: " + utilityRoleKey));
 
     utilityAssignment.assign(member);
+  }
+
+  public int swapMembers(GuildMember left, GuildMember right) {
+    if (left == null || right == null) {
+      throw new IllegalArgumentException("Members to swap must not be null");
+    }
+    if (sameMember(left, right)) {
+      return 0;
+    }
+
+    int swappedAssignments = 0;
+
+    for (EventSlot slot : slots) {
+      if (sameMember(slot.getMember(), left)) {
+        slot.assign(right);
+        swappedAssignments++;
+      } else if (sameMember(slot.getMember(), right)) {
+        slot.assign(left);
+        swappedAssignments++;
+      }
+    }
+
+    for (EventUtilityAssignment assignment : utilityAssignments) {
+      if (sameMember(assignment.getMember(), left)) {
+        assignment.assign(right);
+        swappedAssignments++;
+      } else if (sameMember(assignment.getMember(), right)) {
+        assignment.assign(left);
+        swappedAssignments++;
+      }
+    }
+
+    return swappedAssignments;
+  }
+
+  public int replaceMember(GuildMember existing, GuildMember replacement) {
+    if (existing == null || replacement == null) {
+      throw new IllegalArgumentException("Members to replace must not be null");
+    }
+    if (sameMember(existing, replacement)) {
+      return 0;
+    }
+
+    int replacedAssignments = 0;
+
+    for (EventSlot slot : slots) {
+      if (sameMember(slot.getMember(), existing)) {
+        slot.assign(replacement);
+        replacedAssignments++;
+      }
+    }
+
+    for (EventUtilityAssignment assignment : utilityAssignments) {
+      if (sameMember(assignment.getMember(), existing)) {
+        assignment.assign(replacement);
+        replacedAssignments++;
+      }
+    }
+
+    return replacedAssignments;
+  }
+
+  public boolean containsMember(GuildMember member) {
+    return slots.stream().anyMatch(slot -> sameMember(slot.getMember(), member))
+        || utilityAssignments.stream().anyMatch(assignment -> sameMember(assignment.getMember(), member));
   }
 
   public List<EventSlot> freeSlotsFor(String roleKey) {
@@ -91,11 +164,7 @@ public class EventTeam {
   }
 
   private EventSlot assignedPrimarySlotFor(GuildMember member) {
-    return slots.stream()
-        .filter(EventSlot::isAssigned)
-        .filter(slot -> sameMember(slot.getMember(), member))
-        .findFirst()
-        .orElseThrow(() -> new IllegalStateException("Utility member is not assigned to a primary slot"));
+    return findAssignedPrimarySlotFor(member);
   }
 
   private boolean hasUtilityAssignedToMember(String utilityRoleKey, GuildMember member) {

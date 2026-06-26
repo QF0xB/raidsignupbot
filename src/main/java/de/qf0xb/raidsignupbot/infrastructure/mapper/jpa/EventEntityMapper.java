@@ -2,6 +2,8 @@ package de.qf0xb.raidsignupbot.infrastructure.mapper.jpa;
 
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.event.EventTeam;
+import de.qf0xb.raidsignupbot.infrastructure.jpa.guild.GuildEntity;
+import de.qf0xb.raidsignupbot.infrastructure.jpa.guild.GuildEntityRepository;
 import de.qf0xb.raidsignupbot.infrastructure.jpa.event.EventEntity;
 import de.qf0xb.raidsignupbot.infrastructure.jpa.event.EventTeamEntity;
 import de.qf0xb.raidsignupbot.infrastructure.jpa.template.EventStrategyEntity;
@@ -30,6 +32,9 @@ public abstract class EventEntityMapper implements JpaEntityMapper<EventEntity, 
   GuildEntityMapper guildEntityMapper;
 
   @Inject
+  GuildEntityRepository guildEntityRepository;
+
+  @Inject
   GuildMemberEntityMapper guildMemberEntityMapper;
 
   @Inject
@@ -45,6 +50,7 @@ public abstract class EventEntityMapper implements JpaEntityMapper<EventEntity, 
   @Mapping(target = "categoryId", source = "categoryId")
   @Mapping(target = "signUpChannelId", source = "signUpChannelId")
   @Mapping(target = "messageId", source = "messageId")
+  @Mapping(target = "teamsMessageId", source = "teamsMessageId")
   @Mapping(target = "voiceChannelId", source = "voiceChannelId")
   @Mapping(target = "eventTemplate", source = "template")
   @Mapping(target = "eventTeams", ignore = true)
@@ -54,6 +60,7 @@ public abstract class EventEntityMapper implements JpaEntityMapper<EventEntity, 
   @Mapping(target = "categoryId", source = "categoryId")
   @Mapping(target = "signUpChannelId", source = "signUpChannelId")
   @Mapping(target = "messageId", source = "messageId")
+  @Mapping(target = "teamsMessageId", source = "teamsMessageId")
   @Mapping(target = "voiceChannelId", source = "voiceChannelId")
   @Mapping(target = "template", source = "eventTemplate")
   public abstract Event toDomain(EventEntity eventEntity);
@@ -63,6 +70,7 @@ public abstract class EventEntityMapper implements JpaEntityMapper<EventEntity, 
   @Mapping(target = "categoryId", source = "categoryId")
   @Mapping(target = "signUpChannelId", source = "signUpChannelId")
   @Mapping(target = "messageId", source = "messageId")
+  @Mapping(target = "teamsMessageId", source = "teamsMessageId")
   @Mapping(target = "voiceChannelId", source = "voiceChannelId")
   @Mapping(target = "eventTemplate", source = "template")
   @Mapping(target = "eventTeams", ignore = true)
@@ -79,6 +87,7 @@ public abstract class EventEntityMapper implements JpaEntityMapper<EventEntity, 
     target.setCategoryId(source.getCategoryId());
     target.setSignUpChannelId(source.getSignUpChannelId());
     target.setMessageId(source.getMessageId());
+    target.setTeamsMessageId(source.getTeamsMessageId());
     target.setVoiceChannelId(source.getVoiceChannelId());
     target.setStart(source.getStartAt());
     target.setEnd(source.getEndAt());
@@ -93,7 +102,14 @@ public abstract class EventEntityMapper implements JpaEntityMapper<EventEntity, 
 
   @AfterMapping
   protected void populateEntity(Event source, @MappingTarget EventEntity target) {
-    target.setGuild(guildEntityMapper.toEntity(source.getGuild()));
+    GuildEntity guildEntity = guildEntityRepository.find(
+            "server.serverId = ?1 and name = ?2",
+            source.getGuild().getServerId(),
+            source.getGuild().getName())
+        .firstResultOptional()
+        .orElseThrow(() -> new IllegalArgumentException(
+            "Guild with name " + source.getGuild().getName() + " not found for server " + source.getGuild().getServerId()));
+    target.setGuild(guildEntity);
     target.setHoster(guildMemberEntityMapper.toEntity(source.getHoster()));
     target.setEventTemplate(
         eventTemplateEntityRepository.findByIdOptional(source.getTemplate().getKey())
@@ -105,6 +121,7 @@ public abstract class EventEntityMapper implements JpaEntityMapper<EventEntity, 
     target.setCategoryId(source.getCategoryId());
     target.setSignUpChannelId(source.getSignUpChannelId());
     target.setMessageId(source.getMessageId());
+    target.setTeamsMessageId(source.getTeamsMessageId());
     target.setVoiceChannelId(source.getVoiceChannelId());
     target.setSignupOpen(source.isSignupOpen());
     target.setTeamsGenerated(source.isTeamsGenerated());

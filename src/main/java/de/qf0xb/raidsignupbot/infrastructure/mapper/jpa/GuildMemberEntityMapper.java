@@ -2,6 +2,8 @@ package de.qf0xb.raidsignupbot.infrastructure.mapper.jpa;
 
 import de.qf0xb.raidsignupbot.domain.model.guild.Guild;
 import de.qf0xb.raidsignupbot.domain.model.guild.GuildMember;
+import de.qf0xb.raidsignupbot.infrastructure.jpa.guild.GuildEntity;
+import de.qf0xb.raidsignupbot.infrastructure.jpa.guild.GuildEntityRepository;
 import de.qf0xb.raidsignupbot.infrastructure.jpa.guild.GuildMemberEntity;
 import jakarta.inject.Inject;
 import org.mapstruct.AfterMapping;
@@ -21,6 +23,9 @@ public abstract class GuildMemberEntityMapper implements JpaEntityMapper<GuildMe
   @Inject
   GuildEntityMapper guildEntityMapper;
 
+  @Inject
+  GuildEntityRepository guildEntityRepository;
+
   @Override
   @Mapping(target = "activeGuilds", ignore = true)
   public abstract GuildMemberEntity toEntity(GuildMember guildMember);
@@ -39,7 +44,12 @@ public abstract class GuildMemberEntityMapper implements JpaEntityMapper<GuildMe
   protected void copyActiveGuilds(GuildMember source, @MappingTarget GuildMemberEntity target) {
     target.getActiveGuilds().clear();
     for (Guild guild : source.getActiveGuilds()) {
-      target.getActiveGuilds().add(guildEntityMapper.toEntity(guild));
+      GuildEntity guildEntity = guildEntityRepository
+          .find("server.serverId = ?1 and name = ?2", guild.getServerId(), guild.getName())
+          .firstResultOptional()
+          .orElseThrow(() -> new IllegalArgumentException(
+              "Guild with name " + guild.getName() + " not found for server " + guild.getServerId()));
+      target.getActiveGuilds().add(guildEntity);
     }
   }
 

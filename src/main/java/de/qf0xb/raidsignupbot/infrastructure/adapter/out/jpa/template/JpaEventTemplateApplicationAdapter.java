@@ -8,8 +8,11 @@ import de.qf0xb.raidsignupbot.infrastructure.jpa.template.EventTemplateEntityRep
 import de.qf0xb.raidsignupbot.infrastructure.mapper.jpa.EventTemplateEntityMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class JpaEventTemplateApplicationAdapter
@@ -32,17 +35,29 @@ public class JpaEventTemplateApplicationAdapter
   }
 
   @Override
-  public Optional<EventTemplate> findByKey(String templateKey) {
+  @Transactional
+  public Optional<EventTemplate> findByServerIdAndKey(String serverId, String templateKey) {
     return getRepository().findByIdOptional(templateKey)
+        .filter(template -> template.getServer() != null && serverId.equals(template.getServer().getServerId()))
         .map(getMapper()::toDomain);
   }
 
   @Override
+  @Transactional
+  public Set<EventTemplate> findAllByServerId(String serverId) {
+    return getRepository().find("server.serverId", serverId).stream()
+        .map(getMapper()::toDomain)
+        .collect(Collectors.toSet());
+  }
+
+  @Override
+  @Transactional
   public EventTemplate save(EventTemplate eventTemplate) {
     return save(eventTemplate.getKey(), eventTemplate);
   }
 
   @Override
+  @Transactional
   public EventTemplateEntity partialUpdate(EventTemplate domain, EventTemplateEntity entity) {
     return getMapper().partialUpdate(domain, entity);
   }

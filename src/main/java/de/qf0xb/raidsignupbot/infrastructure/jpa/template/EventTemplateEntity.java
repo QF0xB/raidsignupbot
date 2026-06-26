@@ -1,5 +1,6 @@
 package de.qf0xb.raidsignupbot.infrastructure.jpa.template;
 
+import de.qf0xb.raidsignupbot.infrastructure.jpa.server.ServerEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -18,6 +19,10 @@ public class EventTemplateEntity implements Serializable {
   @Id
   @Column(name = "template_key", nullable = false)
   private String key;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "server_id", referencedColumnName = "server_id")
+  private ServerEntity server;
 
   @Column(name = "name", nullable = false)
   private String name;

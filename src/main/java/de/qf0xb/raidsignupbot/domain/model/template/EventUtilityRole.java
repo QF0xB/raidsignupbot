@@ -39,4 +39,8 @@ public class EventUtilityRole extends EventRole {
   public void removeEligiblePrimaryRole(String roleKey) {
     eligiblePrimaryRoleKeys.remove(roleKey);
   }
+
+  public void clearEligiblePrimaryRoles() {
+    eligiblePrimaryRoleKeys.clear();
+  }
 }

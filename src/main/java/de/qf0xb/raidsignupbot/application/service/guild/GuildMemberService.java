@@ -16,21 +16,21 @@ public class GuildMemberService {
     this.guildMemberApplicationPort = guildMemberApplicationPort;
   }
 
-  public GuildMember createGuildMember(String userId, String guildId) {
+  public GuildMember createGuildMember(String userId, String guildName) {
     GuildMember guildMember = new GuildMember(userId);
-    guildMember.addActiveGuild(guildService.findGuildById(guildId));
+    guildMember.addActiveGuild(guildService.findGuildByName(guildName));
     return guildMemberApplicationPort.save(guildMember);
   }
 
-  public GuildMember joinGuild(String userId, String guildId) {
+  public GuildMember joinGuild(String userId, String guildName) {
     GuildMember guildMember = findGuildMemberById(userId);
-    guildMember.addActiveGuild(guildService.findGuildById(guildId));
+    guildMember.addActiveGuild(guildService.findGuildByName(guildName));
     return guildMemberApplicationPort.save(guildMember);
   }
 
-  public GuildMember leaveGuild(String userId, String guildId) {
+  public GuildMember leaveGuild(String userId, String guildName) {
     GuildMember guildMember = findGuildMemberById(userId);
-    guildMember.removeActiveGuild(guildService.findGuildById(guildId));
+    guildMember.removeActiveGuild(guildService.findGuildByName(guildName));
     return guildMemberApplicationPort.save(guildMember);
   }
 

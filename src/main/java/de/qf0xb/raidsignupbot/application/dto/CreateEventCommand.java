@@ -12,10 +12,13 @@ import java.time.Instant;
 @Getter
 @AllArgsConstructor
 public class CreateEventCommand {
-  private String guildId;
+  private String serverId;
+  private String guildName;
   private String hosterUserId;
 
   private String categoryId;
+  private String signUpChannelId;
+  private String voiceChannelId;
 
   @Builder.Default private int donation = 0;
   @Builder.Default private boolean donationPerWin = false;

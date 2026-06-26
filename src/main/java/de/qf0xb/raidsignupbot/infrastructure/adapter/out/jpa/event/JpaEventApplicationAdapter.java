@@ -37,6 +37,7 @@ public class JpaEventApplicationAdapter
   }
 
   @Override
+  @Transactional
   public Optional<Event> findById(Long id) {
     return getRepository().findByIdOptional(id)
         .map(getMapper()::toDomain);
@@ -56,7 +57,7 @@ public class JpaEventApplicationAdapter
   public Set<Event> findAllChannelExistingEvents() {
     return getRepository().listAll().stream()
         .map(getMapper()::toDomain)
-        .filter(event -> !event.isSignupOpen())
+        .filter(Event::isChannelsExist)
         .collect(Collectors.toCollection(LinkedHashSet::new));
   }
 
@@ -69,11 +70,21 @@ public class JpaEventApplicationAdapter
   }
 
   @Override
+  @Transactional
+  public Optional<Event> findByChannelId(String channelId) {
+    return getRepository().list("signUpChannelId", channelId).stream()
+        .map(getMapper()::toDomain)
+        .findFirst();
+  }
+
+  @Override
+  @Transactional
   public Event save(Event event) {
     return save(event.getId(), event);
   }
 
   @Override
+  @Transactional
   public EventEntity partialUpdate(Event domain, EventEntity entity) {
     return getMapper().partialUpdate(domain, entity);
   }

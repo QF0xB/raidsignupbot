@@ -1,40 +1,40 @@
 package de.qf0xb.raidsignupbot.application.service.event;
 
 import de.qf0xb.raidsignupbot.application.port.EventApplicationPort;
-import de.qf0xb.raidsignupbot.application.port.EventSignupChannelApplicationPort;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
-import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
+import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.adapter.DiscordEventUIApplicationAdapter;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Instance;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.jboss.logging.Logger;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@Slf4j
 @ApplicationScoped
 public class EventLifecycleManager {
   private static final Logger LOG = Logger.getLogger(EventLifecycleManager.class);
 
   private final EventApplicationPort eventApplicationPort;
   private final EventService eventService;
-  private final Instance<EventSignupChannelApplicationPort> eventSignupApplicationPort;
-  private final jakarta.enterprise.event.Event<EventLifecycleNotification> lifecycleNotificationEvent;
+  private final jakarta.enterprise.event.Event<EventLifecycleNotification>
+      lifecycleNotificationEvent;
+  private final DiscordEventUIApplicationAdapter discordEventUIApplicationAdapter;
 
   public EventLifecycleManager(
       EventApplicationPort eventApplicationPort,
       EventService eventService,
-      Instance<EventSignupChannelApplicationPort> eventSignupApplicationPort,
-      jakarta.enterprise.event.Event<EventLifecycleNotification> lifecycleNotificationEvent) {
+      jakarta.enterprise.event.Event<EventLifecycleNotification> lifecycleNotificationEvent,
+      DiscordEventUIApplicationAdapter discordEventUIApplicationAdapter) {
     this.eventApplicationPort = eventApplicationPort;
     this.eventService = eventService;
-    this.eventSignupApplicationPort = eventSignupApplicationPort;
     this.lifecycleNotificationEvent = lifecycleNotificationEvent;
+    this.discordEventUIApplicationAdapter = discordEventUIApplicationAdapter;
   }
 
   @Scheduled(every = "1m", identity = "event-lifecycle-manager")
@@ -49,9 +49,6 @@ public class EventLifecycleManager {
 
     for (Event event : candidates.values()) {
       LOG.infof("Processing event %s", event.getId());
-      if (eventSignupApplicationPort.isResolvable()) {
-        eventSignupApplicationPort.get().createSignupChannel(event);
-      }
       processEvent(event, now);
     }
   }
@@ -65,34 +62,40 @@ public class EventLifecycleManager {
   }
 
   private void processEvent(Event event, Instant now) {
+    log.info(
+        "For event {}: Should close signup: {}, Should emit 1h before: {}, Should emit 30m before: {}, Should emit 15m before: {}, Should emit 1h after:{}",
+        event,
+        shouldCloseSignup(event, now),
+        shouldEmit(event, now, Duration.ofHours(1)),
+        shouldEmit(event, now, Duration.ofMinutes(30)),
+        shouldEmit(event, now, Duration.ofMinutes(15)),
+        shouldEmitAfter(event, now));
+
+
     if (shouldCloseSignup(event, now)) {
       closeSignupIfPossible(event);
       return;
     }
 
-    if (shouldEmit(event, now, Duration.ofHours(1))
-        && !event.isOneHourBeforeEmitted()) {
+    if (shouldEmit(event, now, Duration.ofHours(1)) && !event.isOneHourBeforeEmitted()) {
       emit(event, EventLifecycleStage.ONE_HOUR_BEFORE);
       event.markOneHourBeforeEmitted();
       eventApplicationPort.save(event);
     }
 
-    if (shouldEmit(event, now, Duration.ofMinutes(30))
-        && !event.isThirtyMinutesBeforeEmitted()) {
+    if (shouldEmit(event, now, Duration.ofMinutes(30)) && !event.isThirtyMinutesBeforeEmitted()) {
       emit(event, EventLifecycleStage.THIRTY_MINUTES_BEFORE);
       event.markThirtyMinutesBeforeEmitted();
       eventApplicationPort.save(event);
     }
 
-    if (shouldEmit(event, now, Duration.ofMinutes(15))
-        && !event.isFifteenMinutesBeforeEmitted()) {
+    if (shouldEmit(event, now, Duration.ofMinutes(15)) && !event.isFifteenMinutesBeforeEmitted()) {
       emit(event, EventLifecycleStage.FIFTEEN_MINUTES_BEFORE);
       event.markFifteenMinutesBeforeEmitted();
       eventApplicationPort.save(event);
     }
 
-    if (shouldEmitAfter(event, now)
-        && !event.isOneHourAfterEmitted()) {
+    if (shouldEmitAfter(event, now) && !event.isOneHourAfterEmitted()) {
       emit(event, EventLifecycleStage.ONE_HOUR_AFTER);
       event.markOneHourAfterEmitted();
       eventApplicationPort.save(event);
@@ -106,15 +109,7 @@ public class EventLifecycleManager {
   }
 
   private void closeSignupIfPossible(Event event) {
-    if (!eventSignupApplicationPort.isResolvable()) {
-      LOG.debugf(
-          "Skipping team generation for event %s because no signup source port is available yet",
-          event.getId());
-      return;
-    }
-
-    List<EventMemberSignup> signups = eventSignupApplicationPort.get().getSignupsByMessageId(event);
-    eventService.generateTeamsAndCloseSignup(event.getId(), signups);
+    eventService.generateTeamsAndCloseSignup(event.getId(), discordEventUIApplicationAdapter.closeSignup(event));
   }
 
   private boolean shouldEmit(Event event, Instant now, Duration offset) {
@@ -128,10 +123,6 @@ public class EventLifecycleManager {
   private void emit(Event event, EventLifecycleStage stage) {
     lifecycleNotificationEvent.fire(
         new EventLifecycleNotification(
-            event.getId(),
-            event.getTemplate().getKey(),
-            stage,
-            event.getStart(),
-            event.getEnd()));
+            event.getId(), event.getTemplate().getKey(), stage, event.getStart(), event.getEnd()));
   }
 }
