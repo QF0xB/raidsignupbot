@@ -52,10 +52,12 @@ public class EventService {
     Guild guild = guildService.findGuildByServerIdAndName(command.getServerId(), command.getGuildName());
     boolean manageSignupChannels = serverService.findServerById(guild.getServerId()).isManageSignupChannels();
     boolean manageVoiceChannels = serverService.findServerById(guild.getServerId()).isManageVoiceChannels();
+    GuildMember hoster = guildMemberService.findGuildMemberById(command.getHosterUserId());
     Event event =
         Event.builder()
             .guild(guild)
-            .hoster(guildMemberService.findGuildMemberById(command.getHosterUserId()))
+            .hoster(hoster)
+            .eventAdmin(resolveEventAdmin(command.getEventAdminUserId(), hoster))
             .donationPerWin(command.isDonationPerWin())
             .donation(command.getDonation())
             .start(command.getStart())
@@ -65,6 +67,7 @@ public class EventService {
             .voiceChannelId(command.getVoiceChannelId())
             .signUpChannelId(command.getSignUpChannelId())
             .build();
+    event.setTeamsRequireApproval(command.isTeamsRequireApproval());
 
     if (manageSignupChannels || manageVoiceChannels) {
       event.setCategoryId(command.getCategoryId());
@@ -84,6 +87,7 @@ public class EventService {
   public Event updateEvent(Long eventId, CreateEventCommand command) {
     Event existingEvent = findEventById(eventId);
     Guild guild = guildService.findGuildByServerIdAndName(command.getServerId(), command.getGuildName());
+    GuildMember hoster = guildMemberService.findGuildMemberById(command.getHosterUserId());
     String categoryId = command.getCategoryId() != null ? command.getCategoryId() : existingEvent.getCategoryId();
     String signUpChannelId = command.getSignUpChannelId() != null ? command.getSignUpChannelId() : existingEvent.getSignUpChannelId();
     String voiceChannelId = command.getVoiceChannelId() != null ? command.getVoiceChannelId() : existingEvent.getVoiceChannelId();
@@ -91,7 +95,8 @@ public class EventService {
         Event.builder()
             .id(existingEvent.getId())
             .guild(guild)
-            .hoster(guildMemberService.findGuildMemberById(command.getHosterUserId()))
+            .hoster(hoster)
+            .eventAdmin(resolveEventAdmin(command.getEventAdminUserId(), hoster))
             .donationPerWin(command.isDonationPerWin())
             .donation(command.getDonation())
             .start(command.getStart())
@@ -103,10 +108,12 @@ public class EventService {
             .messageId(existingEvent.getMessageId())
             .teamsMessageId(existingEvent.getTeamsMessageId())
             .build();
+    updatedEvent.setTeamsRequireApproval(command.isTeamsRequireApproval());
 
     updatedEvent.setSignupOpen(existingEvent.isSignupOpen());
     updatedEvent.setTeamsGenerated(existingEvent.isTeamsGenerated());
     updatedEvent.setChannelsExist(existingEvent.isChannelsExist());
+    updatedEvent.setApprovalPending(existingEvent.isApprovalPending());
     updatedEvent.setOneHourBeforeEmitted(existingEvent.isOneHourBeforeEmitted());
     updatedEvent.setThirtyMinutesBeforeEmitted(existingEvent.isThirtyMinutesBeforeEmitted());
     updatedEvent.setFifteenMinutesBeforeEmitted(existingEvent.isFifteenMinutesBeforeEmitted());
@@ -179,7 +186,7 @@ public class EventService {
 
     TeamGeneratorResult results = generateTeams(event, signups);
     Event savedEvent = eventApplicationPort.save(event);
-    eventUIApplicationPort.updateTeams(savedEvent, results);
+    publishOrRequestApproval(savedEvent, results);
     return eventApplicationPort.save(savedEvent);
   }
 
@@ -201,10 +208,39 @@ public class EventService {
     TeamGeneratorResult results = generateTeams(event, signups);
     event = eventApplicationPort.save(event);
 
-    eventUIApplicationPort.publishTeams(event, results);
+    publishOrRequestApproval(event, results);
     event = eventApplicationPort.save(event);
 
     return event;
+  }
+
+  @Transactional
+  public Event approveGeneratedTeams(Long eventId) {
+    Event event = findEventById(eventId);
+    if (!event.isApprovalPending()) {
+      throw new IllegalStateException("Event " + eventId + " does not have pending team approval");
+    }
+
+    TeamGeneratorResult result = new TeamGeneratorResult(event.getTeams(), List.of());
+    event.setTeamsGenerated(true);
+    event.clearApprovalPending();
+    eventUIApplicationPort.publishTeams(event, result);
+    return eventApplicationPort.save(event);
+  }
+
+  @Transactional
+  public Event rejectGeneratedTeams(Long eventId) {
+    Event event = findEventById(eventId);
+    if (!event.isApprovalPending()) {
+      throw new IllegalStateException("Event " + eventId + " does not have pending team approval");
+    }
+
+    event.reopenSignup();
+    event.clearTeams();
+    event.setTeamsMessageId(null);
+    event.setTeamsGenerated(false);
+    event.clearApprovalPending();
+    return eventApplicationPort.save(event);
   }
 
   @Transactional
@@ -216,6 +252,25 @@ public class EventService {
     });
 
     return results;
+  }
+
+  private void publishOrRequestApproval(Event event, TeamGeneratorResult results) {
+    if (event.isTeamsRequireApproval()) {
+      event.setTeamsGenerated(false);
+      event.markApprovalPending();
+      eventUIApplicationPort.sendTeamsForApproval(event, results);
+      return;
+    }
+
+    event.setTeamsGenerated(true);
+    eventUIApplicationPort.publishTeams(event, results);
+  }
+
+  private GuildMember resolveEventAdmin(String eventAdminUserId, GuildMember hoster) {
+    if (eventAdminUserId == null || eventAdminUserId.isBlank()) {
+      return hoster;
+    }
+    return guildMemberService.findGuildMemberById(eventAdminUserId);
   }
 
   public Event findEventById(Long eventId) {

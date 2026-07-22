@@ -12,6 +12,7 @@ public interface EventUIApplicationPort {
   List<EventMemberSignup> closeSignup(Event event);
   void removeSignup(Event event, String userId);
   void publishTeams(Event event, TeamGeneratorResult result);
+  void sendTeamsForApproval(Event event, TeamGeneratorResult result);
   void updateTeams(Event event, TeamGeneratorResult result);
   void deleteEvent(Event event);
 

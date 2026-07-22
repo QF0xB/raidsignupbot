@@ -87,6 +87,7 @@ CREATE TABLE event
     id                            BIGINT AUTO_INCREMENT NOT NULL,
     guild_id                      BIGINT       NOT NULL,
     hoster_user_id                VARCHAR(255) NOT NULL,
+    event_admin_user_id           VARCHAR(255) NOT NULL,
     category_id                   VARCHAR(255),
     signup_channel_id             VARCHAR(255),
     message_id                    VARCHAR(255),
@@ -100,6 +101,8 @@ CREATE TABLE event
     template_key                  VARCHAR(255) NOT NULL,
     teams_generated               BIT(1)       NOT NULL DEFAULT b'0',
     channels_exist                BIT(1)       NOT NULL DEFAULT b'0',
+    approval_pending              BIT(1)       NOT NULL DEFAULT b'0',
+    teams_require_approval        BIT(1)       NOT NULL DEFAULT b'0',
     one_hour_before_emitted       BIT(1)       NOT NULL DEFAULT b'0',
     thirty_minutes_before_emitted BIT(1)       NOT NULL DEFAULT b'0',
     fifteen_minutes_before_emitted BIT(1)      NOT NULL DEFAULT b'0',
@@ -154,6 +157,9 @@ ALTER TABLE event
 
 ALTER TABLE event
     ADD CONSTRAINT fk_event_on_hoster FOREIGN KEY (hoster_user_id) REFERENCES guild_member (external_user_id);
+
+ALTER TABLE event
+    ADD CONSTRAINT fk_event_on_event_admin FOREIGN KEY (event_admin_user_id) REFERENCES guild_member (external_user_id);
 
 ALTER TABLE event
     ADD CONSTRAINT fk_event_on_template FOREIGN KEY (template_key) REFERENCES event_template (template_key);

@@ -21,6 +21,8 @@ public class Event {
 
   private final Guild guild;
   private final GuildMember hoster;
+  @Setter
+  private GuildMember eventAdmin;
 
   @Setter
   private String categoryId;
@@ -62,6 +64,10 @@ public class Event {
 
   @Builder.Default
   @Setter
+  private boolean approvalPending = false;
+
+  @Builder.Default
+  @Setter
   private boolean oneHourBeforeEmitted = false;
 
   @Builder.Default
@@ -75,6 +81,10 @@ public class Event {
   @Builder.Default
   @Setter
   private boolean oneHourAfterEmitted = false;
+
+  @Builder.Default
+  @Setter
+  private boolean teamsRequireApproval = false;
 
   public void addTeam(EventTeam team) {
     teams.add(team);
@@ -91,6 +101,12 @@ public class Event {
   public void closeSignup() {
     signupOpen = false;
     teamsGenerated = true;
+  }
+
+  public void reopenSignup() {
+    signupOpen = true;
+    teamsGenerated = false;
+    approvalPending = false;
   }
 
   public String getDuration() {
@@ -124,5 +140,13 @@ public class Event {
 
   public void markChannelsExist() {
     channelsExist = true;
+  }
+
+  public void markApprovalPending() {
+    approvalPending = true;
+  }
+
+  public void clearApprovalPending() {
+    approvalPending = false;
   }
 }

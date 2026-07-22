@@ -52,6 +52,9 @@ public abstract class EventEntityMapper implements JpaEntityMapper<EventEntity, 
   @Mapping(target = "messageId", source = "messageId")
   @Mapping(target = "teamsMessageId", source = "teamsMessageId")
   @Mapping(target = "voiceChannelId", source = "voiceChannelId")
+  @Mapping(target = "eventAdmin", source = "eventAdmin")
+  @Mapping(target = "approvalPending", source = "approvalPending")
+  @Mapping(target = "teamsRequireApproval", source = "teamsRequireApproval")
   @Mapping(target = "eventTemplate", source = "template")
   @Mapping(target = "eventTeams", ignore = true)
   public abstract EventEntity toEntity(Event event);
@@ -62,6 +65,9 @@ public abstract class EventEntityMapper implements JpaEntityMapper<EventEntity, 
   @Mapping(target = "messageId", source = "messageId")
   @Mapping(target = "teamsMessageId", source = "teamsMessageId")
   @Mapping(target = "voiceChannelId", source = "voiceChannelId")
+  @Mapping(target = "eventAdmin", source = "eventAdmin")
+  @Mapping(target = "approvalPending", source = "approvalPending")
+  @Mapping(target = "teamsRequireApproval", source = "teamsRequireApproval")
   @Mapping(target = "template", source = "eventTemplate")
   public abstract Event toDomain(EventEntity eventEntity);
 
@@ -72,6 +78,9 @@ public abstract class EventEntityMapper implements JpaEntityMapper<EventEntity, 
   @Mapping(target = "messageId", source = "messageId")
   @Mapping(target = "teamsMessageId", source = "teamsMessageId")
   @Mapping(target = "voiceChannelId", source = "voiceChannelId")
+  @Mapping(target = "eventAdmin", source = "eventAdmin")
+  @Mapping(target = "approvalPending", source = "approvalPending")
+  @Mapping(target = "teamsRequireApproval", source = "teamsRequireApproval")
   @Mapping(target = "eventTemplate", source = "template")
   @Mapping(target = "eventTeams", ignore = true)
   public abstract EventEntity partialUpdate(Event event, @MappingTarget EventEntity eventEntity);
@@ -89,6 +98,9 @@ public abstract class EventEntityMapper implements JpaEntityMapper<EventEntity, 
     target.setMessageId(source.getMessageId());
     target.setTeamsMessageId(source.getTeamsMessageId());
     target.setVoiceChannelId(source.getVoiceChannelId());
+    target.setEventAdmin(guildMemberEntityMapper.toDomain(source.getEventAdmin()));
+    target.setApprovalPending(Boolean.TRUE.equals(source.getApprovalPending()));
+    target.setTeamsRequireApproval(Boolean.TRUE.equals(source.getTeamsRequireApproval()));
     target.setStart(source.getStartAt());
     target.setEnd(source.getEndAt());
     target.setSignupOpen(Boolean.TRUE.equals(source.getSignupOpen()));
@@ -123,6 +135,9 @@ public abstract class EventEntityMapper implements JpaEntityMapper<EventEntity, 
     target.setMessageId(source.getMessageId());
     target.setTeamsMessageId(source.getTeamsMessageId());
     target.setVoiceChannelId(source.getVoiceChannelId());
+    target.setEventAdmin(guildMemberEntityMapper.toEntity(source.getEventAdmin()));
+    target.setApprovalPending(source.isApprovalPending());
+    target.setTeamsRequireApproval(source.isTeamsRequireApproval());
     target.setSignupOpen(source.isSignupOpen());
     target.setTeamsGenerated(source.isTeamsGenerated());
     target.setChannelsExist(source.isChannelsExist());

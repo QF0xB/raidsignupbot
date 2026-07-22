@@ -22,6 +22,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.enterprise.event.Observes;
 import lombok.extern.slf4j.Slf4j;
+import net.dv8tion.jda.api.components.actionrow.ActionRow;
+import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Message;
@@ -201,11 +203,7 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
     }
 
     String mentions = buildMentionList(result);
-    EmbedBuilder embedBuilder = new EmbedBuilder();
-    embedBuilder.setTitle(String.format("Event Teams for %s | %s", event.getTemplate().getName(), event.getGuild().getName()));
-    embedBuilder.setDescription(messageFactory.buildTeams(event, result));
-    embedBuilder.setColor(result.teams().isEmpty() ? 0xFF0000 : 0x00FF00);
-    embedBuilder.setFooter("Teams published by RaidSignupBot | made by StormFox");
+    EmbedBuilder embedBuilder = buildTeamsEmbed(event, result, "Teams published by RaidSignupBot | made by StormFox");
 
     if (mentions.isBlank()) {
       Message message = textChannel.sendMessageEmbeds(embedBuilder.build()).complete();
@@ -219,17 +217,46 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
   }
 
   @Override
+  public void sendTeamsForApproval(Event event, TeamGeneratorResult result) {
+    User eventAdmin = api.retrieveUserById(event.getEventAdmin().getUserId()).complete();
+    EmbedBuilder embedBuilder = buildTeamsEmbed(event, result, "Teams awaiting approval by RaidSignupBot | made by StormFox");
+    embedBuilder.setDescription(messageFactory.buildTeams(event, result) + "\n\nApproval required before publishing.");
+
+    ActionRow actions = ActionRow.of(
+        Button.success("event-approval:" + event.getId() + ":approve", "Approve"),
+        Button.danger("event-approval:" + event.getId() + ":reject", "Reject")
+    );
+
+    try {
+      eventAdmin.openPrivateChannel().complete()
+          .sendMessageEmbeds(embedBuilder.build())
+          .setComponents(actions)
+          .complete();
+    } catch (RuntimeException ex) {
+      log.warn("Failed to DM event admin {} for approval of event {}", event.getEventAdmin().getUserId(), event.getId(), ex);
+      TextChannel textChannel = api.getTextChannelById(event.getSignUpChannelId());
+      if (textChannel == null) {
+        throw new IllegalStateException("Unable to request approval because no signup channel exists for event " + event.getId(), ex);
+      }
+
+      textChannel.sendMessage(eventAdmin.getAsMention())
+          .setEmbeds(embedBuilder.build())
+          .setComponents(ActionRow.of(
+              Button.success("event-approval:" + event.getId() + ":approve", "Approve"),
+              Button.danger("event-approval:" + event.getId() + ":reject", "Reject")
+          ))
+          .complete();
+    }
+  }
+
+  @Override
   public void updateTeams(Event event, TeamGeneratorResult result) {
     TextChannel textChannel = api.getTextChannelById(event.getSignUpChannelId());
     if (textChannel == null) {
       throw new IllegalStateException(String.format("TextChannel %s of Event %s does not exist.", event.getSignUpChannelId(), event.getId()));
     }
 
-    EmbedBuilder embedBuilder = new EmbedBuilder();
-    embedBuilder.setTitle(String.format("Event Teams for %s | %s", event.getTemplate().getName(), event.getGuild().getName()));
-    embedBuilder.setDescription(messageFactory.buildTeams(event, result));
-    embedBuilder.setColor(result.teams().isEmpty() ? 0xFF0000 : 0x00FF00);
-    embedBuilder.setFooter("Teams published by RaidSignupBot | made by StormFox");
+    EmbedBuilder embedBuilder = buildTeamsEmbed(event, result, "Teams published by RaidSignupBot | made by StormFox");
 
     if (event.getTeamsMessageId() != null) {
       Message message = textChannel.retrieveMessageById(event.getTeamsMessageId()).complete();
@@ -238,6 +265,15 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
       Message message = textChannel.sendMessageEmbeds(embedBuilder.build()).complete();
       event.setTeamsMessageId(message.getId());
     }
+  }
+
+  private EmbedBuilder buildTeamsEmbed(Event event, TeamGeneratorResult result, String footer) {
+    EmbedBuilder embedBuilder = new EmbedBuilder();
+    embedBuilder.setTitle(String.format("Event Teams for %s | %s", event.getTemplate().getName(), event.getGuild().getName()));
+    embedBuilder.setDescription(messageFactory.buildTeams(event, result));
+    embedBuilder.setColor(result.teams().isEmpty() ? 0xFF0000 : 0x00FF00);
+    embedBuilder.setFooter(footer);
+    return embedBuilder;
   }
 
   private String buildMentionList(TeamGeneratorResult result) {

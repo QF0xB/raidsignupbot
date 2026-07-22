@@ -32,6 +32,10 @@ public class EventEntity implements Serializable {
   @JoinColumn(name = "hoster_user_id", nullable = false)
   private GuildMemberEntity hoster;
 
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "event_admin_user_id", nullable = false)
+  private GuildMemberEntity eventAdmin;
+
   @Column(name = "category_id")
   private String categoryId;
 
@@ -62,6 +66,9 @@ public class EventEntity implements Serializable {
   @Column(name = "channels_exist", nullable = false)
   private Boolean channelsExist = false;
 
+  @Column(name = "approval_pending", nullable = false)
+  private Boolean approvalPending = false;
+
   @Column(name = "one_hour_before_emitted", nullable = false)
   private Boolean oneHourBeforeEmitted = false;
 
@@ -73,6 +80,9 @@ public class EventEntity implements Serializable {
 
   @Column(name = "one_hour_after_emitted", nullable = false)
   private Boolean oneHourAfterEmitted = false;
+
+  @Column(name = "teams_require_approval", nullable = false)
+  private Boolean teamsRequireApproval = false;
 
   @Column(name = "start_at", nullable = false)
   private Instant startAt;

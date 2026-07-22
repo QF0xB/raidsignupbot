@@ -15,6 +15,7 @@ import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.wizard.stepmodal
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.wizard.stepmodalwizard.StepModalWizardStep;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.radiogroup.RadioGroup;
 import net.dv8tion.jda.api.components.selections.EntitySelectMenu;
@@ -41,9 +42,11 @@ public class EventCreationStepModalWizard extends StepModalWizard {
   // Static information
   private static final String TEMPLATE_FIELD = "template-key";
   private static final String HOSTER_FIELD = "hoster-user-id";
+  private static final String EVENT_ADMIN_FIELD = "event-admin-user-id";
   private static final String GUILD_FIELD = "guild-id";
   private static final String START_FIELD = "start-timestamp";
   private static final String DURATION_FIELD = "duration";
+  private static final String TEAMS_APPROVAL_FIELD = "teams-approval";
 
   // Donation
   private static final String DONATION_AMOUNT_FIELD = "donation-amount";
@@ -54,6 +57,9 @@ public class EventCreationStepModalWizard extends StepModalWizard {
   private static final String SIGNUP_FIELD = "signup-channel-id";
   private static final String VOICE_FIELD = "voice-channel-id";
   private static final String EVENT_ID_FIELD = "event-id";
+
+  @Inject
+  JDA api;
 
   @Inject
   EventTemplateApplicationPort templateApplicationPort;
@@ -69,6 +75,7 @@ public class EventCreationStepModalWizard extends StepModalWizard {
     super("createevent", "Create a new event from template", CommandAccessLevel.MANAGE_EVENTS);
     addStep(new DetailsStep());
     addStep(new DonationAndChannelStep());
+    addStep(new ApprovalStep());
   }
 
   @Override
@@ -96,7 +103,9 @@ public class EventCreationStepModalWizard extends StepModalWizard {
         .start(parseTimestamp(session.requireValue(START_FIELD)))
         .end(parseTimestamp(session.requireValue(START_FIELD)).plus(duration))
         .donation(parseDonation(session.requireValue(DONATION_AMOUNT_FIELD)))
-        .donationPerWin(session.requireValue(DONATION_TYPE_FIELD).equals("per-win"));
+        .donationPerWin(session.requireValue(DONATION_TYPE_FIELD).equals("per-win"))
+        .eventAdminUserId(session.requireValue(EVENT_ADMIN_FIELD))
+        .teamsRequireApproval(Boolean.parseBoolean(session.requireValue(TEAMS_APPROVAL_FIELD)));
 
     if (requiresCategory(server)) {
       commandBuilder.categoryId(session.requireValue(CATEGORY_FIELD));
@@ -130,11 +139,13 @@ public class EventCreationStepModalWizard extends StepModalWizard {
     session.putValue(EVENT_ID_FIELD, String.valueOf(existingEvent.getId()));
     session.putValue(TEMPLATE_FIELD, existingEvent.getTemplate().getKey());
     session.putValue(HOSTER_FIELD, existingEvent.getHoster().getUserId());
+    session.putValue(EVENT_ADMIN_FIELD, existingEvent.getEventAdmin().getUserId());
     session.putValue(GUILD_FIELD, existingEvent.getGuild().getName());
     session.putValue(START_FIELD, String.valueOf(existingEvent.getStart().getEpochSecond()));
     session.putValue(DURATION_FIELD, existingEvent.getDuration());
     session.putValue(DONATION_AMOUNT_FIELD, String.valueOf(existingEvent.getDonation()));
     session.putValue(DONATION_TYPE_FIELD, existingEvent.isDonationPerWin() ? "per-win" : "one-time");
+    session.putValue(TEAMS_APPROVAL_FIELD, String.valueOf(existingEvent.isTeamsRequireApproval()));
     Server server = serverService.findServerById(existingEvent.getGuild().getServerId());
     if (requiresCategory(server) && existingEvent.getCategoryId() != null) {
       session.putValue(CATEGORY_FIELD, existingEvent.getCategoryId());
@@ -160,7 +171,7 @@ public class EventCreationStepModalWizard extends StepModalWizard {
 
   public Instant parseTimestamp(String timestamp) {
     try {
-    return Instant.ofEpochSecond(Long.parseLong(timestamp));
+      return Instant.ofEpochSecond(Long.parseLong(timestamp));
     } catch (NumberFormatException ex) {
       throw new IllegalArgumentException("Timestamp must be an epoch second");
     }
@@ -226,7 +237,8 @@ public class EventCreationStepModalWizard extends StepModalWizard {
 
       EntitySelectMenu hosterSelect = EntitySelectMenu.create(HOSTER_FIELD, EntitySelectMenu.SelectTarget.USER)
           .setRequired(true)
-          .setDefaultValues(EntitySelectMenu.DefaultValue.from(event.getUser()))
+          .setDefaultValues(EntitySelectMenu.DefaultValue.from(api.retrieveUserById(
+              session.getValues().getOrDefault(HOSTER_FIELD, event.getUser().getId())).complete()))
           .build();
 
       Set<SelectOption> guildOptions = guildApplicationPort.findGuildByServerId(Objects.requireNonNull(event.getGuild(), "This command is only runnable on a guild.").getId()).stream()
@@ -292,7 +304,7 @@ public class EventCreationStepModalWizard extends StepModalWizard {
   private final class DonationAndChannelStep implements StepModalWizardStep {
     @Override
     public String prompt(StepModalWizardSession session) {
-      return "Step 2/2: provide the donation and channel information";
+      return "Step 2/3: provide the donation and channel information";
     }
 
     @Override
@@ -380,6 +392,46 @@ public class EventCreationStepModalWizard extends StepModalWizard {
       parseDonation(amount);
       session.putValue(DONATION_AMOUNT_FIELD, amount);
       session.putValue(DONATION_TYPE_FIELD, requiredValue(event, DONATION_TYPE_FIELD));
+    }
+  }
+
+  private final class ApprovalStep implements StepModalWizardStep {
+    @Override
+    public String prompt(StepModalWizardSession session) {
+      return "Step 3/3: choose the event admin and whether generated teams need approval.";
+    }
+
+    @Override
+    public Modal buildModal(String modalId, StepModalWizardSession session, ButtonInteractionEvent event) {
+      String eventAdminId = session.getValues().getOrDefault(EVENT_ADMIN_FIELD, session.requireValue(HOSTER_FIELD));
+      EntitySelectMenu eventAdminSelect = EntitySelectMenu.create(EVENT_ADMIN_FIELD, EntitySelectMenu.SelectTarget.USER)
+          .setRequired(true)
+          .setDefaultValues(EntitySelectMenu.DefaultValue.from(api.retrieveUserById(eventAdminId).complete()))
+          .build();
+
+      RadioGroup approvalGroup = RadioGroup.create(TEAMS_APPROVAL_FIELD)
+          .addOption("No approval", "false")
+          .addOption("Require approval", "true")
+          .setRequired(true)
+          .setSelectedValue(Boolean.parseBoolean(session.getValues().getOrDefault(TEAMS_APPROVAL_FIELD, "false")) ? "true" : "false")
+          .build();
+
+      String title = session.getValues().containsKey(EVENT_ID_FIELD)
+          ? "Edit Event - Step 3 of 3"
+          : "Create Event - Step 3 of 3";
+
+      return Modal.create(modalId, title)
+          .addComponents(
+              Label.of("Event admin:", eventAdminSelect),
+              Label.of("Require team approval:", approvalGroup)
+          )
+          .build();
+    }
+
+    @Override
+    public void submit(ModalInteractionEvent event, StepModalWizardSession session) {
+      session.putValue(EVENT_ADMIN_FIELD, requiredValue(event, EVENT_ADMIN_FIELD));
+      session.putValue(TEAMS_APPROVAL_FIELD, requiredValue(event, TEAMS_APPROVAL_FIELD));
     }
   }
 

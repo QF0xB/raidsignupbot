@@ -15,6 +15,7 @@ public class CreateEventCommand {
   private String serverId;
   private String guildName;
   private String hosterUserId;
+  private String eventAdminUserId;
 
   private String categoryId;
   private String signUpChannelId;
@@ -22,6 +23,7 @@ public class CreateEventCommand {
 
   @Builder.Default private int donation = 0;
   @Builder.Default private boolean donationPerWin = false;
+  @Builder.Default private boolean teamsRequireApproval = false;
   private Instant start;
   private Instant end;
   private String templateKey;
