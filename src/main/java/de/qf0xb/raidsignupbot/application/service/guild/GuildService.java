@@ -44,6 +44,41 @@ public class GuildService {
     return guildApplicationPort.save(guild);
   }
 
+  public Guild updateGuildSettings(
+      String guildName,
+      String name,
+      Boolean adminBot,
+      Boolean raiderRolesEnabled,
+      String raiderRoleId,
+      Boolean eventTemplatesEnabled,
+      String eventRoleId) {
+    Guild guild = findGuildByName(guildName);
+
+    if (name != null) {
+      guild.setName(name);
+    }
+    if (adminBot != null) {
+      guild.setBotAdmin(adminBot);
+    }
+    if (raiderRolesEnabled != null) {
+      guild.setRaiderRolesEnabled(raiderRolesEnabled);
+      if (!raiderRolesEnabled) {
+        guild.setRaiderRoleId(null);
+      }
+    }
+    if (raiderRoleId != null) {
+      guild.setRaiderRoleId(raiderRoleId);
+    }
+    if (eventTemplatesEnabled != null) {
+      guild.setEventTemplatesEnabled(eventTemplatesEnabled);
+    }
+    if (eventRoleId != null) {
+      guild.setEventRoleId(eventRoleId);
+    }
+
+    return guildApplicationPort.save(guild);
+  }
+
   public Guild setBotAdminOfGuild(String guildName, boolean admin) {
     Guild guild = findGuildByName(guildName);
     guild.setBotAdmin(admin);

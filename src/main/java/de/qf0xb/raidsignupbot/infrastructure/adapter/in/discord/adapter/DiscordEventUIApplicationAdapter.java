@@ -55,9 +55,8 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
     Server server = serverService.findServerById(event.getGuild().getServerId());
     if (needsGeneratedChannels(server)) {
       createChannels(event);
+      event.markChannelsExist();
     }
-
-    event.markChannelsExist();
 
     postSignup(event);
   }
@@ -270,19 +269,25 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
   }
 
   private void deleteChannels(Event event) {
-    TextChannel textChannel = api.getTextChannelById(event.getSignUpChannelId());
-    if (textChannel == null) {
-      throw new IllegalStateException(String.format("TextChannel %s of Event %s does not exist.", event.getSignUpChannelId(), event.getId()));
+    Server server = serverService.findServerById(event.getGuild().getServerId());
+
+    if (server.isManageSignupChannels() && event.getSignUpChannelId() != null) {
+      TextChannel textChannel = api.getTextChannelById(event.getSignUpChannelId());
+      if (textChannel == null) {
+        throw new IllegalStateException(String.format("TextChannel %s of Event %s does not exist.", event.getSignUpChannelId(), event.getId()));
+      }
+
+      textChannel.delete().queue();
     }
 
-    textChannel.delete().queue();
+    if (server.isManageVoiceChannels() && event.getVoiceChannelId() != null) {
+      VoiceChannel voiceChannel = api.getVoiceChannelById(event.getVoiceChannelId());
+      if (voiceChannel == null) {
+        throw new IllegalStateException(String.format("VoiceChannel %s of Event %s does not exist.", event.getVoiceChannelId(), event.getId()));
+      }
 
-    VoiceChannel voiceChannel = api.getVoiceChannelById(event.getVoiceChannelId());
-    if (voiceChannel == null) {
-      throw new IllegalStateException(String.format("VoiceChannel %s of Event %s does not exist.", event.getVoiceChannelId(), event.getId()));
+      voiceChannel.delete().queue();
     }
-
-    voiceChannel.delete().queue();
   }
 
   private void removeReactionIfPresent(Message signUpMessage, String emojiSlug, User user) {

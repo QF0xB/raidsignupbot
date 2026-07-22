@@ -27,7 +27,7 @@ public class EditGuildCommand extends RaidCommand {
   GuildStepModalWizard guildWizard;
 
   public EditGuildCommand() {
-    super("editguild", "Edit an existing guild.", CommandAccessLevel.MANAGE_GUILDS);
+    super("editguild", "Edit a guild and server settings.", CommandAccessLevel.MANAGE_GUILDS);
     addOption(new OptionData(OptionType.STRING, OPTION_NAME, "The guild to edit", true, true));
   }
 

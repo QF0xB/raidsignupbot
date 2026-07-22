@@ -98,12 +98,11 @@ public class EventCreationStepModalWizard extends StepModalWizard {
         .donation(parseDonation(session.requireValue(DONATION_AMOUNT_FIELD)))
         .donationPerWin(session.requireValue(DONATION_TYPE_FIELD).equals("per-win"));
 
-    if (needsCategory(server)) {
+    if (requiresCategory(server)) {
       commandBuilder.categoryId(session.requireValue(CATEGORY_FIELD));
     }
     if (!server.isManageSignupChannels()) {
-      commandBuilder.signUpChannelId(session.requireValue(SIGNUP_FIELD))
-          ;
+      commandBuilder.signUpChannelId(session.requireValue(SIGNUP_FIELD));
     }
     if (!server.isManageVoiceChannels()) {
       commandBuilder.voiceChannelId(session.requireValue(VOICE_FIELD));
@@ -137,20 +136,14 @@ public class EventCreationStepModalWizard extends StepModalWizard {
     session.putValue(DONATION_AMOUNT_FIELD, String.valueOf(existingEvent.getDonation()));
     session.putValue(DONATION_TYPE_FIELD, existingEvent.isDonationPerWin() ? "per-win" : "one-time");
     Server server = serverService.findServerById(existingEvent.getGuild().getServerId());
-    if (needsCategory(server)) {
-      if (existingEvent.getCategoryId() != null) {
-        session.putValue(CATEGORY_FIELD, existingEvent.getCategoryId());
-      }
+    if (requiresCategory(server) && existingEvent.getCategoryId() != null) {
+      session.putValue(CATEGORY_FIELD, existingEvent.getCategoryId());
     }
     if (!server.isManageSignupChannels() && existingEvent.getSignUpChannelId() != null) {
-      if (existingEvent.getSignUpChannelId() != null) {
-        session.putValue(SIGNUP_FIELD, existingEvent.getSignUpChannelId());
-      }
+      session.putValue(SIGNUP_FIELD, existingEvent.getSignUpChannelId());
     }
     if (!server.isManageVoiceChannels() && existingEvent.getVoiceChannelId() != null) {
-      if (existingEvent.getVoiceChannelId() != null) {
-        session.putValue(VOICE_FIELD, existingEvent.getVoiceChannelId());
-      }
+      session.putValue(VOICE_FIELD, existingEvent.getVoiceChannelId());
     }
 
     registerSession(session);
@@ -346,7 +339,7 @@ public class EventCreationStepModalWizard extends StepModalWizard {
           ? "Edit Event - Step 2 of 3"
           : "Create Event - Step 2 of 3";
       Modal.Builder builder =  Modal.create(modalId, title);
-      if (needsCategory(server)) {
+      if (requiresCategory(server)) {
         builder.addComponents(Label.of("Category:", categorySelect));
       }
       if (!server.isManageSignupChannels()) {
@@ -373,7 +366,7 @@ public class EventCreationStepModalWizard extends StepModalWizard {
 
       Server server  = serverService.findServerById(guild.getServerId());
 
-      if (needsCategory(server)) {
+      if (requiresCategory(server)) {
         session.putValue(CATEGORY_FIELD, requiredValue(event, CATEGORY_FIELD));
       }
       if (!server.isManageSignupChannels()) {
@@ -390,7 +383,7 @@ public class EventCreationStepModalWizard extends StepModalWizard {
     }
   }
 
-  private boolean needsCategory(Server server) {
+  private boolean requiresCategory(Server server) {
     return server.isManageSignupChannels() || server.isManageVoiceChannels();
   }
 }

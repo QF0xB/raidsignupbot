@@ -15,7 +15,7 @@ public class Server {
   private String templateManagerRoleId;
   private String eventManagerRoleId;
   private boolean manageSignupChannels = true;
-  private boolean manageVoiceChannels = true;
+  private boolean manageVoiceChannels = false;
   private String raidVoiceChannelCategory;
 
   public Server(String serverId) {
