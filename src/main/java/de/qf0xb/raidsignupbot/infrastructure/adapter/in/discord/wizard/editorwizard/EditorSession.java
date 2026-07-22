@@ -64,7 +64,7 @@ public class EditorSession<T> {
 
   public EmbedBuilder buildEmbedBase(String title) {
     EmbedBuilder builder = new EmbedBuilder()
-        .setAuthor("Made by RaidSignupBot | by StormFox")
+        .setAuthor("Made by onyxguildbot | by StormFox")
         .setTitle(title)
         .setFooter("Session ID: " + getSessionId() + (hasUnsavedChanges() ? " (Unsaved changes)" : ""))
         .setTimestamp(Instant.now());

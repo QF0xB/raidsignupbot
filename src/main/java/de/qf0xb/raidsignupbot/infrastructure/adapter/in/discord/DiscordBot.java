@@ -2,6 +2,9 @@ package de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord;
 
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.manager.CommandManager;
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.manager.ComponentManager;
+import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.listener.GuildRoleSyncListener;
+import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.listener.RaidGuildJoinListener;
+import de.qf0xb.raidsignupbot.application.service.guild.GuildMemberSyncService;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
@@ -21,10 +24,20 @@ public class DiscordBot {
   @Inject
   ComponentManager componentManager;
 
+  @Inject
+  RaidGuildJoinListener raidGuildJoinListener;
+
+  @Inject
+  GuildRoleSyncListener guildRoleSyncListener;
+
+  @Inject
+  GuildMemberSyncService guildMemberSyncService;
+
   void onStart(@Observes StartupEvent ev) {
     log.info("Starting Discord bot bootstrap");
-    discordApi.addEventListener(commandManager, componentManager);
+    discordApi.addEventListener(commandManager, componentManager, raidGuildJoinListener, guildRoleSyncListener);
     commandManager.registerCommands();
+    guildMemberSyncService.syncAllKnownGuilds();
     log.info("Discord bot started");
   }
 

@@ -348,7 +348,7 @@ public abstract class EditorWorkflow<T> implements ComponentInteractionHandler {
 
   public EmbedBuilder buildEmbedBase(String title, EditorSession<T> session) {
     EmbedBuilder builder = new EmbedBuilder()
-        .setAuthor("Made by RaidSignupBot | by StormFox")
+        .setAuthor("Made by onyxguildbot | by StormFox")
         .setTitle(title)
         .setFooter("Session ID: " + session.getSessionId() + (session.hasUnsavedChanges() ? " (Unsaved changes)" : ""))
         .setTimestamp(Instant.now());

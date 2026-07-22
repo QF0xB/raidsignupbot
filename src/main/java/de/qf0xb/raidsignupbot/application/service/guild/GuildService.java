@@ -5,16 +5,19 @@ import de.qf0xb.raidsignupbot.application.dto.UpdateGuildCommand;
 import de.qf0xb.raidsignupbot.application.port.guild.GuildApplicationPort;
 import de.qf0xb.raidsignupbot.domain.model.guild.Guild;
 import de.qf0xb.raidsignupbot.application.service.server.ServerService;
+import de.qf0xb.raidsignupbot.application.service.guild.GuildMemberSyncService;
 import jakarta.enterprise.context.ApplicationScoped;
 
 @ApplicationScoped
 public class GuildService {
   private final GuildApplicationPort guildApplicationPort;
   private final ServerService serverService;
+  private final GuildMemberSyncService guildMemberSyncService;
 
-  public GuildService(GuildApplicationPort guildApplicationPort, ServerService serverService) {
+  public GuildService(GuildApplicationPort guildApplicationPort, ServerService serverService, GuildMemberSyncService guildMemberSyncService) {
     this.guildApplicationPort = guildApplicationPort;
     this.serverService = serverService;
+    this.guildMemberSyncService = guildMemberSyncService;
   }
 
   public Guild createGuild(CreateGuildCommand command) {
@@ -26,7 +29,9 @@ public class GuildService {
     if (command.isRaiderRolesEnabled()) {
       guild.setRaiderRoleId(command.getRaiderRoleId());
     }
-    return guildApplicationPort.save(guild);
+    Guild savedGuild = guildApplicationPort.save(guild);
+    guildMemberSyncService.syncGuildMembers(savedGuild);
+    return savedGuild;
   }
 
   public Guild updateGuild(String guildName, UpdateGuildCommand command) {
@@ -37,7 +42,9 @@ public class GuildService {
     guild.setRaiderRolesEnabled(command.isRaiderRolesEnabled());
     guild.setRaiderRoleId(command.getRaiderRoleId());
     guild.setEventRoleId(command.getEventRoleId());
-    return guildApplicationPort.save(guild);
+    Guild savedGuild = guildApplicationPort.save(guild);
+    guildMemberSyncService.syncGuildMembers(savedGuild);
+    return savedGuild;
   }
 
   public Guild updateGuildSettings(
@@ -64,7 +71,9 @@ public class GuildService {
       guild.setEventRoleId(eventRoleId);
     }
 
-    return guildApplicationPort.save(guild);
+    Guild savedGuild = guildApplicationPort.save(guild);
+    guildMemberSyncService.syncGuildMembers(savedGuild);
+    return savedGuild;
   }
 
   public Guild setRaiderRolesEnabledOfGuild(String guildName, boolean enabled, String raiderRoleId) {
@@ -73,7 +82,9 @@ public class GuildService {
     if (enabled) {
       guild.setRaiderRoleId(raiderRoleId);
     }
-    return guildApplicationPort.save(guild);
+    Guild savedGuild = guildApplicationPort.save(guild);
+    guildMemberSyncService.syncGuildMembers(savedGuild);
+    return savedGuild;
   }
 
   public Guild findGuildById(Long id) {

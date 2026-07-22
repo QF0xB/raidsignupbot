@@ -203,7 +203,7 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
     }
 
     String mentions = buildMentionList(result);
-    EmbedBuilder embedBuilder = buildTeamsEmbed(event, result, "Teams published by RaidSignupBot | made by StormFox");
+    EmbedBuilder embedBuilder = buildTeamsEmbed(event, result, "Teams published by onyxguildbot | made by StormFox");
 
     if (mentions.isBlank()) {
       Message message = textChannel.sendMessageEmbeds(embedBuilder.build()).complete();
@@ -219,7 +219,7 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
   @Override
   public void sendTeamsForApproval(Event event, TeamGeneratorResult result) {
     User eventAdmin = api.retrieveUserById(event.getEventAdmin().getUserId()).complete();
-    EmbedBuilder embedBuilder = buildTeamsEmbed(event, result, "Teams awaiting approval by RaidSignupBot | made by StormFox");
+    EmbedBuilder embedBuilder = buildTeamsEmbed(event, result, "Teams awaiting approval by onyxguildbot | made by StormFox");
     embedBuilder.setDescription(messageFactory.buildTeams(event, result) + "\n\nApproval required before publishing.");
 
     ActionRow actions = ActionRow.of(
@@ -256,7 +256,7 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
       throw new IllegalStateException(String.format("TextChannel %s of Event %s does not exist.", event.getSignUpChannelId(), event.getId()));
     }
 
-    EmbedBuilder embedBuilder = buildTeamsEmbed(event, result, "Teams published by RaidSignupBot | made by StormFox");
+    EmbedBuilder embedBuilder = buildTeamsEmbed(event, result, "Teams published by onyxguildbot | made by StormFox");
 
     if (event.getTeamsMessageId() != null) {
       Message message = textChannel.retrieveMessageById(event.getTeamsMessageId()).complete();
@@ -359,17 +359,24 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
     }
 
     List<EventMemberSignup> assignedPlayers = collectAssignedPlayers(event);
+    if (assignedPlayers.isEmpty()) {
+      log.info("Skipping {} reminder for event {} because there are no assigned players", stage, event.getId());
+      return;
+    }
+
     String mentions = switch (stage) {
       case ONE_HOUR_BEFORE, THIRTY_MINUTES_BEFORE -> messageFactory.buildMentionList(assignedPlayers);
       case FIFTEEN_MINUTES_BEFORE -> messageFactory.buildMentionList(findMissingSignups(event, assignedPlayers));
       case ONE_HOUR_AFTER -> "";
     };
 
-    String content = messageFactory.buildReminderMessage(event, stage);
+    var reminderEmbed = messageFactory.buildReminderEmbed(event, stage).build();
     if (mentions.isBlank()) {
-      textChannel.sendMessage(content).queue();
+      textChannel.sendMessageEmbeds(reminderEmbed).queue();
     } else {
-      textChannel.sendMessage(mentions + "\n" + content).queue();
+      textChannel.sendMessage(mentions)
+          .setEmbeds(reminderEmbed)
+          .queue();
     }
   }
 

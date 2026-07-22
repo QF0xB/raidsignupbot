@@ -17,11 +17,11 @@ public class RaidGuildJoinListener extends ListenerAdapter {
   public void onGuildJoin(@NonNull GuildJoinEvent event) {
 
     EmbedBuilder embedBuilder = new EmbedBuilder();
-    embedBuilder.setTitle("Welcome to RaidSignupBot!");
+    embedBuilder.setTitle("Welcome to onyxguildbot!");
     embedBuilder.setTimestamp(Instant.now()).setFooter("Made by StormFox");
 
     StringBuilder joinMessage = new StringBuilder();
-    joinMessage.append("Hi! I'm RaidSignupBot!").append("\n");
+    joinMessage.append("Hi! I'm onyxguildbot!").append("\n");
     joinMessage.append("I'm here to help you organize raids!").append("\n");
     joinMessage.append("We need to onboard your server!").append("\n");
     joinMessage.append("Please use `/onboard` to get started!").append("\n");

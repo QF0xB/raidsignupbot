@@ -7,6 +7,9 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Activity;
+import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.utils.MemberCachePolicy;
+import net.dv8tion.jda.api.utils.ChunkingFilter;
 
 @ApplicationScoped
 public class DiscordClientProducer {
@@ -18,6 +21,9 @@ public class DiscordClientProducer {
     }
 
     return JDABuilder.createDefault(discordConfig.getToken().orElseThrow())
+        .enableIntents(GatewayIntent.GUILD_MEMBERS)
+        .setMemberCachePolicy(MemberCachePolicy.ALL)
+        .setChunkingFilter(ChunkingFilter.ALL)
         .setStatus(OnlineStatus.ONLINE)
         .setActivity(Activity.playing("Planning Wizard101 Activities"))
         .build()

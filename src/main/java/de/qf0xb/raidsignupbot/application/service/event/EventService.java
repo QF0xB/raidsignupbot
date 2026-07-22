@@ -20,6 +20,8 @@ import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @ApplicationScoped
@@ -31,6 +33,7 @@ public class EventService {
   private final TemplateService templateService;
   private final OrToolsTeamGeneratorService teamGeneratorService = new OrToolsTeamGeneratorService();
   private final EventUIApplicationPort eventUIApplicationPort;
+  private final Map<Long, TeamGeneratorResult> pendingApprovalResults = new ConcurrentHashMap<>();
 
   public EventService(
       EventApplicationPort eventApplicationPort,
@@ -221,7 +224,11 @@ public class EventService {
       throw new IllegalStateException("Event " + eventId + " does not have pending team approval");
     }
 
-    TeamGeneratorResult result = new TeamGeneratorResult(event.getTeams(), List.of());
+    TeamGeneratorResult result = pendingApprovalResults.remove(eventId);
+    if (result == null) {
+      throw new IllegalStateException("No pending team result stored for event " + eventId);
+    }
+
     event.setTeamsGenerated(true);
     event.clearApprovalPending();
     eventUIApplicationPort.publishTeams(event, result);
@@ -240,6 +247,7 @@ public class EventService {
     event.setTeamsMessageId(null);
     event.setTeamsGenerated(false);
     event.clearApprovalPending();
+    pendingApprovalResults.remove(eventId);
     return eventApplicationPort.save(event);
   }
 
@@ -258,11 +266,13 @@ public class EventService {
     if (event.isTeamsRequireApproval()) {
       event.setTeamsGenerated(false);
       event.markApprovalPending();
+      pendingApprovalResults.put(event.getId(), results);
       eventUIApplicationPort.sendTeamsForApproval(event, results);
       return;
     }
 
     event.setTeamsGenerated(true);
+    pendingApprovalResults.remove(event.getId());
     eventUIApplicationPort.publishTeams(event, results);
   }
 

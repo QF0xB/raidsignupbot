@@ -17,11 +17,12 @@ public abstract class AbstractJpaApplicationAdapter<ID, D, E, M extends JpaEntit
 
     if (entity == null) {
       E newEntity = getMapper().toEntity(domain);
-      getRepository().persist(newEntity);
+      getRepository().persistAndFlush(newEntity);
       return getMapper().toDomain(newEntity);
     }
 
     entity = getMapper().partialUpdate(domain, entity);
+    getRepository().flush();
     return getMapper().toDomain(entity);
   }
 

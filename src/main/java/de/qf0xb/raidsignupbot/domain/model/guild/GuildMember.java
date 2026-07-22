@@ -28,11 +28,21 @@ public class GuildMember {
   }
 
   public void addActiveGuild(Guild guild) {
-    activeGuilds.add(guild);
+    boolean alreadyActive = activeGuilds.stream().anyMatch(existing ->
+        existing != null
+            && java.util.Objects.equals(existing.getServerId(), guild.getServerId())
+            && java.util.Objects.equals(existing.getName(), guild.getName()));
+
+    if (!alreadyActive) {
+      activeGuilds.add(guild);
+    }
   }
 
   public void removeActiveGuild(Guild guild) {
-    activeGuilds.remove(guild);
+    activeGuilds.removeIf(existing ->
+        existing != null
+            && java.util.Objects.equals(existing.getServerId(), guild.getServerId())
+            && java.util.Objects.equals(existing.getName(), guild.getName()));
   }
 
   public void increasePriority() {
