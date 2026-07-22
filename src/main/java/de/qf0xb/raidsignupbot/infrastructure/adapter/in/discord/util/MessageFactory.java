@@ -1,6 +1,7 @@
 package de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.util;
 
 import de.qf0xb.raidsignupbot.application.TeamGeneratorResult;
+import de.qf0xb.raidsignupbot.application.service.event.EventLifecycleStage;
 import de.qf0xb.raidsignupbot.domain.model.event.*;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.template.EventRole;
@@ -16,6 +17,7 @@ import java.awt.*;
 import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class MessageFactory {
@@ -37,6 +39,47 @@ public class MessageFactory {
     }
 
     return "<@&" + event.getGuild().getEventRoleId() + ">";
+  }
+
+  public String buildReminderMessage(Event event, EventLifecycleStage stage) {
+    String voiceChannelLink = buildVoiceChannelLink(event);
+    return switch (stage) {
+      case ONE_HOUR_BEFORE -> String.format(
+          "Raid reminder for %s | %s: one hour left. Everyone on the raid should be in %s no later than 15 minutes before start.",
+          event.getTemplate().getName(),
+          event.getGuild().getName(),
+          voiceChannelLink);
+      case THIRTY_MINUTES_BEFORE -> String.format(
+          "Raid reminder for %s | %s: 30 minutes left. Start joining %s, get online, and get some snacks.",
+          event.getTemplate().getName(),
+          event.getGuild().getName(),
+          voiceChannelLink);
+      case FIFTEEN_MINUTES_BEFORE -> String.format(
+          "Urgent raid reminder for %s | %s: 15 minutes left. Join %s now.",
+          event.getTemplate().getName(),
+          event.getGuild().getName(),
+          voiceChannelLink);
+      case ONE_HOUR_AFTER -> String.format(
+          "Raid follow-up for %s | %s: the raid should be over now. Thanks for coming.",
+          event.getTemplate().getName(),
+          event.getGuild().getName());
+    };
+  }
+
+  public String buildMentionList(List<? extends EventMemberSignup> signups) {
+    return signups.stream()
+        .map(signup -> signup.getGuildMember().getUserId())
+        .distinct()
+        .map(userId -> "<@" + userId + ">")
+        .collect(Collectors.joining(" "));
+  }
+
+  private String buildVoiceChannelLink(Event event) {
+    if (event.getVoiceChannelId() == null || event.getVoiceChannelId().isBlank()) {
+      return "voice channel";
+    }
+
+    return "<#" + event.getVoiceChannelId() + ">";
   }
 
   public String buildSignupDescription(Event event) {

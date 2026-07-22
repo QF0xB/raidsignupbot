@@ -2,7 +2,10 @@ package de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.adapter;
 
 import de.qf0xb.raidsignupbot.application.TeamGeneratorResult;
 import de.qf0xb.raidsignupbot.application.port.EventUIApplicationPort;
+import de.qf0xb.raidsignupbot.application.port.EventApplicationPort;
 import de.qf0xb.raidsignupbot.application.service.server.ServerService;
+import de.qf0xb.raidsignupbot.application.service.event.EventLifecycleNotification;
+import de.qf0xb.raidsignupbot.application.service.event.EventLifecycleStage;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
 import de.qf0xb.raidsignupbot.domain.model.event.EventSlot;
@@ -17,19 +20,23 @@ import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.util.DiscordEmoj
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.util.Collector;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.enterprise.event.Observes;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.concrete.Category;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 
 import java.time.ZoneId;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @ApplicationScoped
@@ -49,6 +56,9 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
 
   @Inject
   ServerService serverService;
+
+  @Inject
+  EventApplicationPort eventApplicationPort;
 
   @Override
   public void addEvent(Event event) {
@@ -264,6 +274,13 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
     }
   }
 
+  public void onEventLifecycleNotification(@Observes EventLifecycleNotification notification) {
+    eventApplicationPort.findById(notification.eventId())
+        .ifPresentOrElse(
+            event -> sendReminder(event, notification.stage()),
+            () -> log.warn("Skipping lifecycle notification for missing event id {}", notification.eventId()));
+  }
+
   private boolean needsGeneratedChannels(Server server) {
     return server.isManageSignupChannels() || server.isManageVoiceChannels();
   }
@@ -297,5 +314,52 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
         .filter(candidate -> candidate.getId().equals(user.getId()))
         .findFirst()
         .ifPresent(ignored -> signUpMessage.removeReaction(emojiResolver.resolve(emojiSlug), user).queue());
+  }
+
+  public void sendReminder(Event event, EventLifecycleStage stage) {
+    TextChannel textChannel = api.getTextChannelById(event.getSignUpChannelId());
+    if (textChannel == null) {
+      throw new IllegalStateException(String.format("TextChannel %s of Event %s does not exist.", event.getSignUpChannelId(), event.getId()));
+    }
+
+    List<EventMemberSignup> assignedPlayers = collectAssignedPlayers(event);
+    String mentions = switch (stage) {
+      case ONE_HOUR_BEFORE, THIRTY_MINUTES_BEFORE -> messageFactory.buildMentionList(assignedPlayers);
+      case FIFTEEN_MINUTES_BEFORE -> messageFactory.buildMentionList(findMissingSignups(event, assignedPlayers));
+      case ONE_HOUR_AFTER -> "";
+    };
+
+    String content = messageFactory.buildReminderMessage(event, stage);
+    if (mentions.isBlank()) {
+      textChannel.sendMessage(content).queue();
+    } else {
+      textChannel.sendMessage(mentions + "\n" + content).queue();
+    }
+  }
+
+  private List<EventMemberSignup> collectAssignedPlayers(Event event) {
+    List<EventMemberSignup> signups = signupCollector.collect(event);
+    return signups.stream()
+        .filter(signup -> event.getTeams().stream().anyMatch(team -> team.containsMember(signup.getGuildMember())))
+        .toList();
+  }
+
+  private List<EventMemberSignup> findMissingSignups(Event event, List<EventMemberSignup> assignedPlayers) {
+    if (event.getVoiceChannelId() == null || event.getVoiceChannelId().isBlank()) {
+      return assignedPlayers;
+    }
+
+    VoiceChannel voiceChannel = api.getVoiceChannelById(event.getVoiceChannelId());
+    if (voiceChannel == null) {
+      throw new IllegalStateException(String.format("VoiceChannel %s of Event %s does not exist.", event.getVoiceChannelId(), event.getId()));
+    }
+
+    Set<String> voiceUserIds = voiceChannel.getMembers().stream()
+        .map(Member::getId)
+        .collect(Collectors.toCollection(HashSet::new));
+
+    return assignedPlayers.stream()
+        .filter(signup -> !voiceUserIds.contains(signup.getGuildMember().getUserId()))
+        .toList();
   }
 }

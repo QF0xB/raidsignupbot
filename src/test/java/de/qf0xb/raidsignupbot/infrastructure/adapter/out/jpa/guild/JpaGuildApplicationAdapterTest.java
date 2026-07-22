@@ -21,9 +21,7 @@ class JpaGuildApplicationAdapterTest {
   @TestTransaction
   void savesAndLoadsGuild() {
     Guild initial = new Guild("guild-1", "guild-1");
-    initial.setBotAdmin(true);
     initial.setRaiderRolesEnabled(false);
-    initial.setEventTemplatesEnabled(false);
     initial.setRaiderRoleId("raider-1");
 
     adapter.save(initial);
@@ -33,14 +31,10 @@ class JpaGuildApplicationAdapterTest {
     Guild loaded = adapter.findByName("guild-1").orElseThrow();
     assertEquals("Initial Guild", loaded.getName());
     assertEquals("raider-1", loaded.getRaiderRoleId());
-    assertTrue(loaded.isBotAdmin());
     assertFalse(loaded.isRaiderRolesEnabled());
-    assertFalse(loaded.isEventTemplatesEnabled());
 
     Guild updated = new Guild("haeihaahei", "guild-1");
-    updated.setBotAdmin(false);
     updated.setRaiderRolesEnabled(true);
-    updated.setEventTemplatesEnabled(true);
     updated.setRaiderRoleId("raider-2");
 
     adapter.save(updated);
@@ -50,8 +44,6 @@ class JpaGuildApplicationAdapterTest {
     Guild reloaded = adapter.findByName("guild-1").orElseThrow();
     assertEquals("Updated Guild", reloaded.getName());
     assertEquals("raider-2", reloaded.getRaiderRoleId());
-    assertFalse(reloaded.isBotAdmin());
     assertTrue(reloaded.isRaiderRolesEnabled());
-    assertTrue(reloaded.isEventTemplatesEnabled());
   }
 }

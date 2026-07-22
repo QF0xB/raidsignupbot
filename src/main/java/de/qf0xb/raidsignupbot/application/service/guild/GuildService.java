@@ -20,9 +20,7 @@ public class GuildService {
   public Guild createGuild(CreateGuildCommand command) {
     Guild guild = new Guild(command.getName(), command.getServerId());
     guild.setServer(serverService.ensureServer(command.getServerId()));
-    guild.setBotAdmin(command.isAdminBot());
     guild.setRaiderRolesEnabled(command.isRaiderRolesEnabled());
-    guild.setEventTemplatesEnabled(command.isEventTemplatesEnabled());
     guild.setEventRoleId(command.getEventRoleId());
 
     if (command.isRaiderRolesEnabled()) {
@@ -36,10 +34,8 @@ public class GuildService {
     guild.setName(command.getName());
     guild.setServerId(command.getServerId());
     guild.setServer(serverService.ensureServer(command.getServerId()));
-    guild.setBotAdmin(command.isAdminBot());
     guild.setRaiderRolesEnabled(command.isRaiderRolesEnabled());
     guild.setRaiderRoleId(command.getRaiderRoleId());
-    guild.setEventTemplatesEnabled(command.isEventTemplatesEnabled());
     guild.setEventRoleId(command.getEventRoleId());
     return guildApplicationPort.save(guild);
   }
@@ -47,18 +43,13 @@ public class GuildService {
   public Guild updateGuildSettings(
       String guildName,
       String name,
-      Boolean adminBot,
       Boolean raiderRolesEnabled,
       String raiderRoleId,
-      Boolean eventTemplatesEnabled,
       String eventRoleId) {
     Guild guild = findGuildByName(guildName);
 
     if (name != null) {
       guild.setName(name);
-    }
-    if (adminBot != null) {
-      guild.setBotAdmin(adminBot);
     }
     if (raiderRolesEnabled != null) {
       guild.setRaiderRolesEnabled(raiderRolesEnabled);
@@ -69,19 +60,10 @@ public class GuildService {
     if (raiderRoleId != null) {
       guild.setRaiderRoleId(raiderRoleId);
     }
-    if (eventTemplatesEnabled != null) {
-      guild.setEventTemplatesEnabled(eventTemplatesEnabled);
-    }
     if (eventRoleId != null) {
       guild.setEventRoleId(eventRoleId);
     }
 
-    return guildApplicationPort.save(guild);
-  }
-
-  public Guild setBotAdminOfGuild(String guildName, boolean admin) {
-    Guild guild = findGuildByName(guildName);
-    guild.setBotAdmin(admin);
     return guildApplicationPort.save(guild);
   }
 
@@ -91,12 +73,6 @@ public class GuildService {
     if (enabled) {
       guild.setRaiderRoleId(raiderRoleId);
     }
-    return guildApplicationPort.save(guild);
-  }
-
-  public Guild setEventTemplatesEnabledOfGuild(String guildName, boolean enabled) {
-    Guild guild = findGuildByName(guildName);
-    guild.setEventTemplatesEnabled(enabled);
     return guildApplicationPort.save(guild);
   }
 

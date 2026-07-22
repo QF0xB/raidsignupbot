@@ -104,7 +104,7 @@ public abstract class StepModalWizard implements ComponentInteractionHandler, Sl
       currentStep(session).submit(event, session);
       session.touch(DEFAULT_SESSION_TTL);
     } catch (RuntimeException ex) {
-      event.reply(ex.getMessage())
+      event.reply(failureMessage(ex))
           .setEphemeral(true)
           .queue();
       return;
@@ -285,7 +285,7 @@ public abstract class StepModalWizard implements ComponentInteractionHandler, Sl
   public void cleanupExpiredSessions() {
     sessions.entrySet().stream()
         .filter(entry -> entry.getValue().isExpired())
-            .forEach(stringModalWizardSessionEntry -> stringModalWizardSessionEntry.getValue().clear());
+        .forEach(sessionEntry -> sessionEntry.getValue().clear());
 
     sessions.entrySet().removeIf(entry -> entry.getValue().isExpired());
   }
@@ -331,4 +331,9 @@ public abstract class StepModalWizard implements ComponentInteractionHandler, Sl
 
   private record ParsedButtonId(String sessionId, int stepIndex, String action) {}
   private record ParsedModalId(String sessionId, int stepIndex) {}
+
+  private String failureMessage(RuntimeException ex) {
+    String message = ex.getMessage();
+    return (message == null || message.isBlank()) ? ex.toString() : message;
+  }
 }

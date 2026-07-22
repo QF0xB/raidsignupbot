@@ -12,14 +12,10 @@ public class Guild {
 
   private Server server;
 
-  private boolean botAdmin = false;
-
   private boolean raiderRolesEnabled = true;
   private String raiderRoleId;
 
   private String eventRoleId;
-
-  private boolean eventTemplatesEnabled = true;
 
   public Guild(String name, String serverId) {
     this.name = name;

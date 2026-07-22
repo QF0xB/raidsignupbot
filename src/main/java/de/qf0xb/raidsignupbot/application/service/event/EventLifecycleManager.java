@@ -77,29 +77,10 @@ public class EventLifecycleManager {
       return;
     }
 
-    if (shouldEmit(event, now, Duration.ofHours(1)) && !event.isOneHourBeforeEmitted()) {
-      emit(event, EventLifecycleStage.ONE_HOUR_BEFORE);
-      event.markOneHourBeforeEmitted();
-      eventApplicationPort.save(event);
-    }
-
-    if (shouldEmit(event, now, Duration.ofMinutes(30)) && !event.isThirtyMinutesBeforeEmitted()) {
-      emit(event, EventLifecycleStage.THIRTY_MINUTES_BEFORE);
-      event.markThirtyMinutesBeforeEmitted();
-      eventApplicationPort.save(event);
-    }
-
-    if (shouldEmit(event, now, Duration.ofMinutes(15)) && !event.isFifteenMinutesBeforeEmitted()) {
-      emit(event, EventLifecycleStage.FIFTEEN_MINUTES_BEFORE);
-      event.markFifteenMinutesBeforeEmitted();
-      eventApplicationPort.save(event);
-    }
-
-    if (shouldEmitAfter(event, now) && !event.isOneHourAfterEmitted()) {
-      emit(event, EventLifecycleStage.ONE_HOUR_AFTER);
-      event.markOneHourAfterEmitted();
-      eventApplicationPort.save(event);
-    }
+    emitIfDue(event, now, Duration.ofHours(1), event.isOneHourBeforeEmitted(), EventLifecycleStage.ONE_HOUR_BEFORE);
+    emitIfDue(event, now, Duration.ofMinutes(30), event.isThirtyMinutesBeforeEmitted(), EventLifecycleStage.THIRTY_MINUTES_BEFORE);
+    emitIfDue(event, now, Duration.ofMinutes(15), event.isFifteenMinutesBeforeEmitted(), EventLifecycleStage.FIFTEEN_MINUTES_BEFORE);
+    emitAfterIfDue(event, now);
   }
 
   private boolean shouldCloseSignup(Event event, Instant now) {
@@ -124,5 +105,42 @@ public class EventLifecycleManager {
     lifecycleNotificationEvent.fire(
         new EventLifecycleNotification(
             event.getId(), event.getTemplate().getKey(), stage, event.getStart(), event.getEnd()));
+  }
+
+  private void emitIfDue(Event event, Instant now, Duration offset, boolean alreadyEmitted, EventLifecycleStage stage) {
+    if (!shouldEmit(event, now, offset) || alreadyEmitted) {
+      return;
+    }
+
+    try {
+      emit(event, stage);
+      markEmitted(event, stage);
+      eventApplicationPort.save(event);
+    } catch (RuntimeException ex) {
+      LOG.warnf(ex, "Failed to emit %s reminder for event %s", stage, event.getId());
+    }
+  }
+
+  private void emitAfterIfDue(Event event, Instant now) {
+    if (!shouldEmitAfter(event, now) || event.isOneHourAfterEmitted()) {
+      return;
+    }
+
+    try {
+      emit(event, EventLifecycleStage.ONE_HOUR_AFTER);
+      event.markOneHourAfterEmitted();
+      eventApplicationPort.save(event);
+    } catch (RuntimeException ex) {
+      LOG.warnf(ex, "Failed to emit %s reminder for event %s", EventLifecycleStage.ONE_HOUR_AFTER, event.getId());
+    }
+  }
+
+  private void markEmitted(Event event, EventLifecycleStage stage) {
+    switch (stage) {
+      case ONE_HOUR_BEFORE -> event.markOneHourBeforeEmitted();
+      case THIRTY_MINUTES_BEFORE -> event.markThirtyMinutesBeforeEmitted();
+      case FIFTEEN_MINUTES_BEFORE -> event.markFifteenMinutesBeforeEmitted();
+      case ONE_HOUR_AFTER -> event.markOneHourAfterEmitted();
+    }
   }
 }

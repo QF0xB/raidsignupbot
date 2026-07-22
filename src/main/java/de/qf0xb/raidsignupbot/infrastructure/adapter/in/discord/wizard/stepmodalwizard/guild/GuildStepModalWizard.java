@@ -32,10 +32,8 @@ public class GuildStepModalWizard extends StepModalWizard {
   private static final String ORIGINAL_GUILD_NAME_FIELD = "original-guild-name";
   private static final String SERVER_ID_FIELD = "server-id";
   private static final String NAME_FIELD = "guild-name";
-  private static final String BOT_ADMIN_FIELD = "bot-admin";
   private static final String RAIDER_ROLES_ENABLED_FIELD = "raider-roles-enabled";
   private static final String RAIDER_ROLE_ID_FIELD = "raider-role-id";
-  private static final String EVENT_TEMPLATES_ENABLED_FIELD = "event-templates-enabled";
   private static final String EVENT_ROLE_ID_FIELD = "event-role-id";
   private static final String GUILD_MANAGER_ROLE_ID_FIELD = "guild-manager-role-id";
   private static final String TEMPLATE_MANAGER_ROLE_ID_FIELD = "template-manager-role-id";
@@ -89,9 +87,7 @@ public class GuildStepModalWizard extends StepModalWizard {
     session.putValue(ORIGINAL_GUILD_NAME_FIELD, existingGuild.getName());
     session.putValue(SERVER_ID_FIELD, existingGuild.getServerId());
     session.putValue(NAME_FIELD, existingGuild.getName());
-    session.putValue(BOT_ADMIN_FIELD, String.valueOf(existingGuild.isBotAdmin()));
     session.putValue(RAIDER_ROLES_ENABLED_FIELD, String.valueOf(existingGuild.isRaiderRolesEnabled()));
-    session.putValue(EVENT_TEMPLATES_ENABLED_FIELD, String.valueOf(existingGuild.isEventTemplatesEnabled()));
     if (existingGuild.getRaiderRoleId() != null) {
       session.putValue(RAIDER_ROLE_ID_FIELD, existingGuild.getRaiderRoleId());
     }
@@ -132,9 +128,7 @@ public class GuildStepModalWizard extends StepModalWizard {
   public String onComplete(StepModalWizardSession session, ModalInteractionEvent event) {
     String guildName = session.requireValue(NAME_FIELD);
     String serverId = session.requireValue(SERVER_ID_FIELD);
-    boolean botAdmin = parseBoolean(session.requireValue(BOT_ADMIN_FIELD), BOT_ADMIN_FIELD);
     boolean raiderRolesEnabled = parseBoolean(session.requireValue(RAIDER_ROLES_ENABLED_FIELD), RAIDER_ROLES_ENABLED_FIELD);
-    boolean eventTemplatesEnabled = parseBoolean(session.requireValue(EVENT_TEMPLATES_ENABLED_FIELD), EVENT_TEMPLATES_ENABLED_FIELD);
     String raiderRoleId = raiderRolesEnabled ? optionalValue(session, RAIDER_ROLE_ID_FIELD) : null;
     String eventRoleId = optionalValue(session, EVENT_ROLE_ID_FIELD);
     String guildManagerRoleId = optionalValue(session, GUILD_MANAGER_ROLE_ID_FIELD);
@@ -147,10 +141,8 @@ public class GuildStepModalWizard extends StepModalWizard {
     CreateGuildCommand createCommand = CreateGuildCommand.builder()
         .name(guildName)
         .serverId(serverId)
-        .adminBot(botAdmin)
         .raiderRolesEnabled(raiderRolesEnabled)
         .raiderRoleId(raiderRoleId)
-        .eventTemplatesEnabled(eventTemplatesEnabled)
         .eventRoleId(eventRoleId)
         .build();
 
@@ -159,10 +151,8 @@ public class GuildStepModalWizard extends StepModalWizard {
       UpdateGuildCommand updateCommand = UpdateGuildCommand.builder()
         .name(guildName)
         .serverId(serverId)
-        .adminBot(botAdmin)
         .raiderRolesEnabled(raiderRolesEnabled)
         .raiderRoleId(raiderRoleId)
-        .eventTemplatesEnabled(eventTemplatesEnabled)
         .eventRoleId(eventRoleId)
         .build();
 
@@ -247,9 +237,7 @@ public class GuildStepModalWizard extends StepModalWizard {
     @Override
     public Modal buildModal(String modalId, StepModalWizardSession session, ButtonInteractionEvent event) {
       String nameValue = session.getValues().get(NAME_FIELD);
-      String botAdminValue = session.getValues().get(BOT_ADMIN_FIELD);
       String raiderRolesEnabledValue = session.getValues().get(RAIDER_ROLES_ENABLED_FIELD);
-      String eventTemplatesEnabledValue = session.getValues().get(EVENT_TEMPLATES_ENABLED_FIELD);
 
       TextInput.Builder nameInput = TextInput.create(NAME_FIELD, TextInputStyle.SHORT)
           .setRequired(true)
@@ -258,25 +246,12 @@ public class GuildStepModalWizard extends StepModalWizard {
         nameInput.setValue(nameValue);
       }
 
-      RadioGroup.Builder botAdminInput = radioGroup(BOT_ADMIN_FIELD, "Yes", "true", "No", "false");
-      if (botAdminValue != null) {
-        botAdminInput.setSelectedValue(botAdminValue);
-      }
-
       RadioGroup.Builder raiderRolesEnabledInput = RadioGroup.create(RAIDER_ROLES_ENABLED_FIELD)
           .addOption("Enabled", "true")
           .addOption("Disabled", "false")
           .setRequired(true);
       if (raiderRolesEnabledValue != null) {
         raiderRolesEnabledInput.setSelectedValue(raiderRolesEnabledValue);
-      }
-
-      RadioGroup.Builder eventTemplatesEnabledInput = RadioGroup.create(EVENT_TEMPLATES_ENABLED_FIELD)
-          .addOption("Enabled", "true")
-          .addOption("Disabled", "false")
-          .setRequired(true);
-      if (eventTemplatesEnabledValue != null) {
-        eventTemplatesEnabledInput.setSelectedValue(eventTemplatesEnabledValue);
       }
 
       EntitySelectMenu.Builder raiderRoleSelect = EntitySelectMenu.create(RAIDER_ROLE_ID_FIELD, EntitySelectMenu.SelectTarget.ROLE)
@@ -293,9 +268,7 @@ public class GuildStepModalWizard extends StepModalWizard {
 
       builder.addComponents(
           Label.of("Guild name", nameInput.build()),
-          Label.of("Bot admin", botAdminInput.build()),
           Label.of("Raider roles enabled", raiderRolesEnabledInput.build()),
-          Label.of("Event templates enabled", eventTemplatesEnabledInput.build()),
           Label.of("Raider role", raiderRoleSelect.build())
       );
 
@@ -305,9 +278,7 @@ public class GuildStepModalWizard extends StepModalWizard {
     @Override
     public void submit(ModalInteractionEvent event, StepModalWizardSession session) {
       session.putValue(NAME_FIELD, requiredValue(event, NAME_FIELD));
-      session.putValue(BOT_ADMIN_FIELD, requiredValue(event, BOT_ADMIN_FIELD));
       session.putValue(RAIDER_ROLES_ENABLED_FIELD, requiredValue(event, RAIDER_ROLES_ENABLED_FIELD));
-      session.putValue(EVENT_TEMPLATES_ENABLED_FIELD, requiredValue(event, EVENT_TEMPLATES_ENABLED_FIELD));
 
       String raiderRoleId = GuildStepModalWizard.this.optionalValue(event, RAIDER_ROLE_ID_FIELD);
       if (raiderRoleId != null) {
@@ -467,9 +438,7 @@ public class GuildStepModalWizard extends StepModalWizard {
   }
 
   private String formatGuild(Guild guild) {
-    return "- Bot admin: " + yesNo(guild.isBotAdmin()) + "\n"
-        + "- Raider roles: " + yesNo(guild.isRaiderRolesEnabled()) + " (" + valueOrNone(guild.getRaiderRoleId()) + ")\n"
-        + "- Event templates: " + yesNo(guild.isEventTemplatesEnabled()) + "\n"
+    return "- Raider roles: " + yesNo(guild.isRaiderRolesEnabled()) + " (" + valueOrNone(guild.getRaiderRoleId()) + ")\n"
         + "- Event role: " + valueOrNone(guild.getEventRoleId());
   }
 
