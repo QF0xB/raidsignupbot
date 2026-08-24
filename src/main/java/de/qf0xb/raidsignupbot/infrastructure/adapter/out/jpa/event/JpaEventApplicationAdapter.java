@@ -45,6 +45,14 @@ public class JpaEventApplicationAdapter
 
   @Override
   @Transactional
+  public Set<Event> findAllEvents() {
+    return getRepository().listAll().stream()
+        .map(getMapper()::toDomain)
+        .collect(Collectors.toCollection(LinkedHashSet::new));
+  }
+
+  @Override
+  @Transactional
   public Set<Event> findAllUpcomingEvents() {
     return getRepository().listAll().stream()
         .map(getMapper()::toDomain)

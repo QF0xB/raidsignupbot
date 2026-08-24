@@ -1,6 +1,7 @@
 package de.qf0xb.raidsignupbot.application.service.calendar;
 
 import de.qf0xb.raidsignupbot.application.port.RaidCalendarApplicationPort;
+import de.qf0xb.raidsignupbot.application.port.EventApplicationPort;
 import de.qf0xb.raidsignupbot.application.port.template.EventTemplateApplicationPort;
 import de.qf0xb.raidsignupbot.application.service.guild.GuildService;
 import de.qf0xb.raidsignupbot.application.service.server.ServerService;
@@ -23,16 +24,19 @@ public class RaidCalendarService {
       .withZone(ZoneId.systemDefault());
 
   private final RaidCalendarApplicationPort calendarPort;
+  private final EventApplicationPort eventPort;
   private final ServerService serverService;
   private final GuildService guildService;
   private final EventTemplateApplicationPort templatePort;
 
   public RaidCalendarService(
       RaidCalendarApplicationPort calendarPort,
+      EventApplicationPort eventPort,
       ServerService serverService,
       GuildService guildService,
       EventTemplateApplicationPort templatePort) {
     this.calendarPort = calendarPort;
+    this.eventPort = eventPort;
     this.serverService = serverService;
     this.guildService = guildService;
     this.templatePort = templatePort;
@@ -52,6 +56,7 @@ public class RaidCalendarService {
     templatePort.findByServerIdAndKey(serverId, templateKey)
         .orElseThrow(() -> new IllegalArgumentException("Template " + templateKey + " not found"));
     validateTimes(start, end);
+    ensureGuildHasNoRaidOnDay(serverId, guildName, start, null, null);
 
     return calendarPort.save(RaidCalendarEntry.builder()
         .serverId(serverId)
@@ -117,6 +122,8 @@ public class RaidCalendarService {
     if (entry.getEventId() != null) {
       throw new IllegalStateException("This calendar entry already has an event");
     }
+    validateTimes(start, end);
+    ensureGuildHasNoRaidOnDay(serverId, guildName, start, entryId, null);
     if (!creatorIsGuildManager && !Objects.equals(entry.getHosterUserId(), creatorUserId)) {
       throw new IllegalArgumentException("Only the event owner or a guild manager can create this event");
     }
@@ -137,6 +144,14 @@ public class RaidCalendarService {
     }
     entry.setEventId(eventId);
     calendarPort.save(entry);
+  }
+
+  @Transactional
+  public void validateEventUpdate(String serverId, Long eventId, String guildName, Instant start) {
+    if (start == null) {
+      throw new IllegalArgumentException("Calendar event start is required");
+    }
+    ensureGuildHasNoRaidOnDay(serverId, guildName, start, null, eventId);
   }
 
   public String render(String serverId) {
@@ -177,6 +192,57 @@ public class RaidCalendarService {
     if (start == null || end == null || !end.isAfter(start)) {
       throw new IllegalArgumentException("Calendar event end must be after its start");
     }
+  }
+
+  private void ensureGuildHasNoRaidOnDay(
+      String serverId,
+      String guildName,
+      Instant start,
+      Long ignoredCalendarEntryId,
+      Long ignoredEventId) {
+    var raidDay = start.atZone(ZoneId.systemDefault()).toLocalDate();
+
+    boolean calendarConflict = calendarPort.findByServerId(serverId).stream()
+        .filter(entry -> !Objects.equals(entry.getId(), ignoredCalendarEntryId))
+        .filter(entry -> !Objects.equals(entry.getEventId(), ignoredEventId))
+        .anyMatch(entry -> sameGuildAndDay(
+            serverId, guildName, raidDay, entry.getServerId(), entry.getGuildName(), entry.getStart()));
+    if (calendarConflict) {
+      throw new IllegalArgumentException(
+          "Guild " + guildName + " already has a raid scheduled on " + raidDay
+              + "; only one raid per guild per day is allowed");
+    }
+
+    boolean eventConflict = eventPort.findAllEvents().stream()
+        .anyMatch(event -> event.getGuild() != null
+            && sameGuildAndDay(
+                serverId,
+                guildName,
+                raidDay,
+                event.getGuild().getServerId(),
+                event.getGuild().getName(),
+                event.getStart())
+            && !Objects.equals(event.getId(), ignoredEventId));
+    if (eventConflict) {
+      throw new IllegalArgumentException(
+          "Guild " + guildName + " already has a raid event on " + raidDay
+              + "; only one raid per guild per day is allowed");
+    }
+  }
+
+  private boolean sameGuildAndDay(
+      String serverId,
+      String guildName,
+      java.time.LocalDate raidDay,
+      String existingServerId,
+      String existingGuildName,
+      Instant existingStart) {
+    return Objects.equals(serverId, existingServerId)
+        && Objects.equals(guildName, existingGuildName)
+        && existingStart != null
+        && Objects.equals(
+            raidDay,
+            existingStart.atZone(ZoneId.systemDefault()).toLocalDate());
   }
 
   private String formatEmoji(String emojiSlug) {

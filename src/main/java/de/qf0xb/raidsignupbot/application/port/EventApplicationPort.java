@@ -7,6 +7,7 @@ import java.util.Set;
 
 public interface EventApplicationPort {
   Optional<Event> findById(Long id);
+  Set<Event> findAllEvents();
   Set<Event> findAllUpcomingEvents();
   Set<Event> findAllChannelExistingEvents();
   Set<Event> findByTemplateKey(String templateKey);

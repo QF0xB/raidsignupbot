@@ -105,6 +105,8 @@ public class EventService {
   @Transactional
   public Event updateEvent(Long eventId, CreateEventCommand command) {
     Event existingEvent = findEventById(eventId);
+    raidCalendarService.validateEventUpdate(
+        command.getServerId(), eventId, command.getGuildName(), command.getStart());
     Guild guild = guildService.findGuildByServerIdAndName(command.getServerId(), command.getGuildName());
     GuildMember hoster = guildMemberService.findGuildMemberById(command.getHosterUserId());
     String categoryId = command.getCategoryId() != null ? command.getCategoryId() : existingEvent.getCategoryId();

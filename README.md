@@ -6,6 +6,8 @@ Guild administrators can configure the calendar with `/calendarconfig`, providin
 
 The scheduled event hoster creates signup events through `/createevent`. Guild managers (and server administrators) can create any available calendar event as an override. The wizard only offers eligible unused entries, and event creation is rejected unless the selected event still matches that entry. This keeps the calendar channel as the source of truth for upcoming events.
 
+Each guild can have at most one raid on a calendar day. The check includes both calendar entries and existing persisted raid events, including events created before the calendar was introduced.
+
 This project uses Quarkus, the Supersonic Subatomic Java Framework.
 
 If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
