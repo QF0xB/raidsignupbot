@@ -135,7 +135,7 @@ public class GreedyTeamGeneratorService implements TeamGeneratorService {
         .sorted(Comparator
             .comparingInt((SignupChoice choice) -> choice.roleKey().equals(slot.getKey()) ? 0 : 1)
             .thenComparingInt(choice -> choice.signup().getRoleKeys().size())
-            .thenComparing(choice -> -choice.signup().getGuildMember().getPriority())
+            .thenComparing(choice -> -choice.signup().getEffectivePriority())
             .thenComparing(choice -> choice.signup().getGuildMember().getUserId()))
         .map(choice -> new RoleAssignment(choice.roleKey(), choice.signup()))
         .collect(Collectors.collectingAndThen(
@@ -170,7 +170,7 @@ public class GreedyTeamGeneratorService implements TeamGeneratorService {
         .filter(assignment -> !alreadyAssignedUtility(utilityAssignments, utilityRole, assignment.signup()))
         .sorted(Comparator
             .comparingInt((RoleAssignment assignment) -> assignment.signup().getRoleKeys().size())
-            .thenComparing(assignment -> -assignment.signup().getGuildMember().getPriority())
+            .thenComparing(assignment -> -assignment.signup().getEffectivePriority())
             .thenComparing(assignment -> assignment.signup().getGuildMember().getUserId()))
         .toList();
 
@@ -262,8 +262,7 @@ public class GreedyTeamGeneratorService implements TeamGeneratorService {
 
     private int priorityScore() {
       return usedSignups.stream()
-          .map(EventMemberSignup::getGuildMember)
-          .mapToLong(GuildMember::getPriority)
+          .mapToLong(EventMemberSignup::getEffectivePriority)
           .mapToInt(priority -> Math.toIntExact(priority))
           .sum();
     }

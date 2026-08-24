@@ -154,6 +154,8 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
         message.addReaction(emojiResolver.resolve(role.getEmojiSlug())).queue();
       }
     }
+
+    message.addReaction(emojiResolver.resolve(EventMemberSignup.BACKUP_EMOJI)).queue();
   }
 
   private void updateSignupMessage(Event event) {
@@ -166,7 +168,7 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
     textChannel.retrieveMessageById(event.getMessageId())
         .queue(message -> message.editMessage(ping)
             .setEmbeds(messageFactory.buildSignupEmbed(event).build())
-            .queue());
+            .queue(ignored -> message.addReaction(emojiResolver.resolve(EventMemberSignup.BACKUP_EMOJI)).queue()));
   }
 
   @Override
@@ -193,6 +195,8 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
         removeReactionIfPresent(signUpMessage, role.getEmojiSlug(), user);
       }
     }
+
+    removeReactionIfPresent(signUpMessage, EventMemberSignup.BACKUP_EMOJI, user);
   }
 
   @Override
