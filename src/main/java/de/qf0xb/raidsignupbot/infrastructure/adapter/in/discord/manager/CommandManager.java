@@ -19,6 +19,7 @@ import org.jspecify.annotations.NonNull;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Slf4j
@@ -63,10 +64,20 @@ public class CommandManager extends ListenerAdapter {
             .addOptions(command.getOptions())));
 
     if (LaunchMode.current() == LaunchMode.DEVELOPMENT) {
-      discordConfig.getGuildId()
-          .map(discordApi::getGuildById)
-          .ifPresent(guild -> guild.updateCommands().addCommands(cmds).queue());
-      log.info("Registered slash commands to guild {}: {}", discordConfig.getGuildId().orElseThrow(), cmds.stream().map(CommandData::getName).toList());
+      Optional<String> guildId = discordConfig.getGuildId();
+      if (guildId.isEmpty()) {
+        log.warn("discord.dev.guild-id is not configured; slash commands were not registered in development mode");
+        return;
+      }
+
+      var guild = discordApi.getGuildById(guildId.get());
+      if (guild == null) {
+        log.warn("Development guild {} was not found; slash commands were not registered", guildId.get());
+        return;
+      }
+
+      guild.updateCommands().addCommands(cmds).queue();
+      log.info("Registered slash commands to guild {}: {}", guildId.get(), cmds.stream().map(CommandData::getName).toList());
     } else {
       discordApi.updateCommands().addCommands(cmds).queue();
       log.info("Registered slash commands globally: {}", cmds);
