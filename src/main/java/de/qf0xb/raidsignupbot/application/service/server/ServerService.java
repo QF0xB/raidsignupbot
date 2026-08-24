@@ -80,14 +80,11 @@ public class ServerService {
   }
 
   @Transactional
-  public Server updateCalendarSettings(String serverId, String channelId, String ownerId) {
+  public Server updateCalendarSettings(String serverId, String channelId) {
     Server server = ensureServer(serverId);
     if (channelId != null && !channelId.equals(server.getRaidCalendarChannelId())) {
       server.setRaidCalendarChannelId(channelId);
       server.setRaidCalendarMessageId(null);
-    }
-    if (ownerId != null) {
-      server.setRaidCalendarOwnerId(ownerId);
     }
     return serverApplicationPort.save(server);
   }

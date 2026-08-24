@@ -59,6 +59,7 @@ public class EventService {
     raidCalendarService.validateEventCreation(
         command.getServerId(),
         command.getCreatorUserId(),
+        command.isCreatorIsGuildManager(),
         command.getCalendarEntryId(),
         command.getGuildName(),
         command.getHosterUserId(),

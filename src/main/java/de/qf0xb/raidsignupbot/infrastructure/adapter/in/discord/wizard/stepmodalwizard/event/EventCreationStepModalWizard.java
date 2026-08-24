@@ -11,6 +11,7 @@ import de.qf0xb.raidsignupbot.domain.model.guild.Guild;
 import de.qf0xb.raidsignupbot.domain.model.server.Server;
 import de.qf0xb.raidsignupbot.domain.model.template.EventTemplate;
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.command.CommandAccessLevel;
+import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.command.CommandPermissionService;
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.wizard.stepmodalwizard.StepModalWizard;
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.wizard.stepmodalwizard.StepModalWizardSession;
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.wizard.stepmodalwizard.StepModalWizardStep;
@@ -49,6 +50,7 @@ public class EventCreationStepModalWizard extends StepModalWizard {
   private static final String DURATION_FIELD = "duration";
   private static final String TEAMS_APPROVAL_FIELD = "teams-approval";
   private static final String CALENDAR_ENTRY_FIELD = "calendar-entry-id";
+  private static final String CREATOR_GUILD_MANAGER_FIELD = "creator-is-guild-manager";
 
   // Donation
   private static final String DONATION_AMOUNT_FIELD = "donation-amount";
@@ -75,6 +77,9 @@ public class EventCreationStepModalWizard extends StepModalWizard {
 
   @Inject
   RaidCalendarService raidCalendarService;
+
+  @Inject
+  CommandPermissionService commandPermissionService;
 
   public EventCreationStepModalWizard() {
     super("createevent", "Create an event from the raid calendar", CommandAccessLevel.PUBLIC);
@@ -103,6 +108,8 @@ public class EventCreationStepModalWizard extends StepModalWizard {
     CreateEventCommand.CreateEventCommandBuilder commandBuilder = CreateEventCommand.builder()
         .serverId(serverId)
         .creatorUserId(session.getUserId())
+        .creatorIsGuildManager(Boolean.parseBoolean(
+            session.getValues().getOrDefault(CREATOR_GUILD_MANAGER_FIELD, "false")))
         .guildName(guild.getName())
         .hosterUserId(session.requireValue(HOSTER_FIELD))
         .templateKey(session.requireValue(TEMPLATE_FIELD))
@@ -229,9 +236,12 @@ public class EventCreationStepModalWizard extends StepModalWizard {
     }
 
     try {
-      Server server = raidCalendarService.requireCalendarConfigured(event.getGuild().getId());
-      if (!event.getUser().getId().equals(server.getRaidCalendarOwnerId())) {
-        event.reply("Only the configured raid calendar owner can create events.")
+      raidCalendarService.requireCalendarConfigured(event.getGuild().getId());
+      boolean guildManager = commandPermissionService.isAllowed(event, CommandAccessLevel.MANAGE_GUILDS);
+      boolean ownsCalendarEntry = raidCalendarService.findUpcomingEntries(event.getGuild().getId()).stream()
+          .anyMatch(entry -> event.getUser().getId().equals(entry.getHosterUserId()));
+      if (!guildManager && !ownsCalendarEntry) {
+        event.reply("Only the event owner or a guild manager can create calendar events.")
             .setEphemeral(true)
             .queue();
         return;
@@ -248,7 +258,20 @@ public class EventCreationStepModalWizard extends StepModalWizard {
           .queue();
       return;
     }
-    super.execute(event);
+
+    cleanupExpiredSessions();
+    StepModalWizardSession session = createSession(event.getUser().getId());
+    session.putValue(CREATOR_GUILD_MANAGER_FIELD, String.valueOf(
+        commandPermissionService.isAllowed(event, CommandAccessLevel.MANAGE_GUILDS)));
+    registerSession(session);
+    try {
+      sendPrompt(event, session);
+    } catch (RuntimeException ex) {
+      sessions.remove(session.getSessionId());
+      event.reply("Failed to start event wizard: " + ex.getMessage())
+          .setEphemeral(true)
+          .queue();
+    }
   }
 
   private final class DetailsStep implements StepModalWizardStep {
@@ -261,9 +284,12 @@ public class EventCreationStepModalWizard extends StepModalWizard {
     @Override
     public Modal buildModal(String modalId, StepModalWizardSession session, ButtonInteractionEvent event) {
       if (!session.getValues().containsKey(EVENT_ID_FIELD)) {
+        boolean guildManager = Boolean.parseBoolean(
+            session.getValues().getOrDefault(CREATOR_GUILD_MANAGER_FIELD, "false"));
         Set<SelectOption> calendarOptions = raidCalendarService.findUpcomingEntries(
                 Objects.requireNonNull(event.getGuild(), "This command is only runnable on a guild.").getId())
             .stream()
+            .filter(entry -> guildManager || session.getUserId().equals(entry.getHosterUserId()))
             .limit(25)
             .map(entry -> SelectOption.of(
                 entry.getId() + " - " + entry.getGuildName() + " / " + entry.getTemplateKey(),

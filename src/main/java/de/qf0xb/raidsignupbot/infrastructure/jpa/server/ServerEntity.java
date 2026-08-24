@@ -37,9 +37,6 @@ public class ServerEntity {
   @Column(name = "raid_calendar_channel_id")
   private String raidCalendarChannelId;
 
-  @Column(name = "raid_calendar_owner_id")
-  private String raidCalendarOwnerId;
-
   @Column(name = "raid_calendar_message_id")
   private String raidCalendarMessageId;
 }

@@ -15,6 +15,7 @@ public class CreateEventCommand {
   private String serverId;
   private Long calendarEntryId;
   private String creatorUserId;
+  @Builder.Default private boolean creatorIsGuildManager = false;
   private String guildName;
   private String hosterUserId;
   private String eventAdminUserId;

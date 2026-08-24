@@ -101,6 +101,7 @@ public class RaidCalendarService {
   public void validateEventCreation(
       String serverId,
       String creatorUserId,
+      boolean creatorIsGuildManager,
       Long entryId,
       String guildName,
       String hosterUserId,
@@ -109,16 +110,15 @@ public class RaidCalendarService {
       Instant end) {
     Server server = serverService.findServerById(serverId);
     requireCalendarConfigured(server);
-    if (!Objects.equals(server.getRaidCalendarOwnerId(), creatorUserId)) {
-      throw new IllegalArgumentException("Only the configured raid calendar owner can create events");
-    }
-
     RaidCalendarEntry entry = findEntry(entryId);
     if (!serverId.equals(entry.getServerId())) {
       throw new IllegalArgumentException("Calendar entry does not belong to this server");
     }
     if (entry.getEventId() != null) {
       throw new IllegalStateException("This calendar entry already has an event");
+    }
+    if (!creatorIsGuildManager && !Objects.equals(entry.getHosterUserId(), creatorUserId)) {
+      throw new IllegalArgumentException("Only the event owner or a guild manager can create this event");
     }
     if (!Objects.equals(entry.getGuildName(), guildName)
         || !Objects.equals(entry.getHosterUserId(), hosterUserId)
@@ -170,9 +170,6 @@ public class RaidCalendarService {
   private void requireCalendarConfigured(Server server) {
     if (server.getRaidCalendarChannelId() == null || server.getRaidCalendarChannelId().isBlank()) {
       throw new IllegalStateException("Raid calendar channel has not been configured");
-    }
-    if (server.getRaidCalendarOwnerId() == null || server.getRaidCalendarOwnerId().isBlank()) {
-      throw new IllegalStateException("Raid calendar owner has not been configured");
     }
   }
 
