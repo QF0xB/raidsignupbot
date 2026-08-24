@@ -1,5 +1,6 @@
 package de.qf0xb.raidsignupbot.infrastructure.jpa.template;
 
+import de.qf0xb.raidsignupbot.infrastructure.jpa.server.ServerEntity;
 import io.quarkus.test.TestTransaction;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
@@ -17,8 +18,9 @@ class EventTemplateConstraintTest {
   @Test
   @TestTransaction
   void allowsSameStrategyKeyInDifferentTemplates() {
-    persistTemplateWithStrategy("template-a", "shared-strategy", "Storm A");
-    persistTemplateWithStrategy("template-b", "shared-strategy", "Storm B");
+    ServerEntity server = persistServer();
+    persistTemplateWithStrategy("template-a", "shared-strategy", "Storm A", server);
+    persistTemplateWithStrategy("template-b", "shared-strategy", "Storm B", server);
 
     assertDoesNotThrow(() -> entityManager.flush());
   }
@@ -26,10 +28,13 @@ class EventTemplateConstraintTest {
   @Test
   @TestTransaction
   void allowsSameRoleKeyInDifferentStrategies() {
+    ServerEntity server = persistServer();
     EventTemplateEntity template = new EventTemplateEntity();
     template.setKey("template-a");
     template.setName("Template A");
     template.setDetails("details");
+    template.setEmojiSlug(":template:");
+    template.setServer(server);
 
     EventStrategyEntity firstStrategy = new EventStrategyEntity();
     firstStrategy.setKey("first-strategy");
@@ -54,10 +59,13 @@ class EventTemplateConstraintTest {
   @Test
   @TestTransaction
   void rejectsDuplicateStrategyKeyInSameTemplate() {
+    ServerEntity server = persistServer();
     EventTemplateEntity template = new EventTemplateEntity();
     template.setKey("template-a");
     template.setName("Template A");
     template.setDetails("details");
+    template.setEmojiSlug(":template:");
+    template.setServer(server);
 
     EventStrategyEntity firstStrategy = new EventStrategyEntity();
     firstStrategy.setKey("storm");
@@ -77,10 +85,13 @@ class EventTemplateConstraintTest {
   @Test
   @TestTransaction
   void rejectsDuplicateRoleKeyInSameStrategy() {
+    ServerEntity server = persistServer();
     EventTemplateEntity template = new EventTemplateEntity();
     template.setKey("template-a");
     template.setName("Template A");
     template.setDetails("details");
+    template.setEmojiSlug(":template:");
+    template.setServer(server);
 
     EventStrategyEntity strategy = new EventStrategyEntity();
     strategy.setKey("role-strategy");
@@ -94,11 +105,21 @@ class EventTemplateConstraintTest {
     assertThrows(ConstraintViolationException.class, () -> entityManager.persist(template));
   }
 
-  private void persistTemplateWithStrategy(String templateKey, String strategyKey, String strategyName) {
+  private ServerEntity persistServer() {
+    ServerEntity server = new ServerEntity();
+    server.setServerId("test-server");
+    entityManager.persist(server);
+    return server;
+  }
+
+  private void persistTemplateWithStrategy(
+      String templateKey, String strategyKey, String strategyName, ServerEntity server) {
     EventTemplateEntity template = new EventTemplateEntity();
     template.setKey(templateKey);
     template.setName(templateKey);
     template.setDetails("details");
+    template.setEmojiSlug(":template:");
+    template.setServer(server);
 
     EventStrategyEntity strategy = new EventStrategyEntity();
     strategy.setKey(strategyKey);

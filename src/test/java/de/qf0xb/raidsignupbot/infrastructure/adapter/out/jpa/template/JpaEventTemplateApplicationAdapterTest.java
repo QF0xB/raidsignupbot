@@ -4,6 +4,7 @@ import de.qf0xb.raidsignupbot.domain.model.template.EventRole;
 import de.qf0xb.raidsignupbot.domain.model.template.EventStrategy;
 import de.qf0xb.raidsignupbot.domain.model.template.EventTemplate;
 import de.qf0xb.raidsignupbot.domain.model.template.EventUtilityRole;
+import de.qf0xb.raidsignupbot.infrastructure.jpa.server.ServerEntity;
 import io.quarkus.test.TestTransaction;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
@@ -24,7 +25,12 @@ class JpaEventTemplateApplicationAdapterTest {
   @Test
   @TestTransaction
   void savesAndLoadsTemplateAggregate() {
+    ServerEntity server = new ServerEntity();
+    server.setServerId("test");
+    entityManager.persist(server);
+
     EventTemplate initial = new EventTemplate("raid-1", "Raid One", "Initial details", "test");
+    initial.setServerId("test");
     EventStrategy strategy = new EventStrategy("storm-test", "Storm Strategy");
     strategy.addGuide("guide-a");
     strategy.addRole(new EventRole("one", "Potent Feint", ":one:", 1));
@@ -37,7 +43,7 @@ class JpaEventTemplateApplicationAdapterTest {
     entityManager.flush();
     entityManager.clear();
 
-    EventTemplate loaded = adapter.findByKey("raid-1").orElseThrow();
+    EventTemplate loaded = adapter.findByServerIdAndKey("test", "raid-1").orElseThrow();
     assertEquals("Raid One", loaded.getName());
     assertEquals("Initial details", loaded.getDetails());
     assertEquals(1, loaded.getStrategies().size());
@@ -45,6 +51,7 @@ class JpaEventTemplateApplicationAdapterTest {
     assertTrue(loaded.findStrategy("storm-test").orElseThrow().findUtilityRole("hex").orElseThrow().isEligibleFor("one"));
 
     EventTemplate updated = new EventTemplate("raid-1", "Raid One Updated", "Updated details", "test");
+    updated.setServerId("test");
     EventStrategy updatedStrategy = new EventStrategy("storm-test", "Storm Strategy Updated");
     updatedStrategy.addGuide("guide-b");
     updatedStrategy.addRole(new EventRole("one", "Potent Feint Updated", ":one:", 2));
@@ -58,7 +65,7 @@ class JpaEventTemplateApplicationAdapterTest {
     entityManager.flush();
     entityManager.clear();
 
-    EventTemplate reloaded = adapter.findByKey("raid-1").orElseThrow();
+    EventTemplate reloaded = adapter.findByServerIdAndKey("test", "raid-1").orElseThrow();
     assertEquals("Raid One Updated", reloaded.getName());
     assertEquals("Updated details", reloaded.getDetails());
     assertEquals(1, reloaded.getStrategies().size());

@@ -9,8 +9,13 @@ import de.qf0xb.raidsignupbot.domain.model.template.EventStrategy;
 import de.qf0xb.raidsignupbot.domain.model.template.EventTemplate;
 import de.qf0xb.raidsignupbot.domain.model.template.EventUtilityRole;
 import de.qf0xb.raidsignupbot.infrastructure.jpa.event.EventEntity;
+import de.qf0xb.raidsignupbot.infrastructure.jpa.guild.GuildEntity;
+import de.qf0xb.raidsignupbot.infrastructure.jpa.guild.GuildEntityRepository;
+import de.qf0xb.raidsignupbot.infrastructure.jpa.server.ServerEntity;
+import de.qf0xb.raidsignupbot.infrastructure.jpa.server.ServerEntityRepository;
 import de.qf0xb.raidsignupbot.infrastructure.jpa.template.EventTemplateEntity;
 import de.qf0xb.raidsignupbot.infrastructure.jpa.template.EventTemplateEntityRepository;
+import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
@@ -30,6 +35,8 @@ class EventEntityMapperTest {
   private final EventTeamEntityMapper eventTeamEntityMapper = Mappers.getMapper(EventTeamEntityMapper.class);
   private final EventEntityMapper eventEntityMapper = Mappers.getMapper(EventEntityMapper.class);
   private final EventTemplateEntityRepository eventTemplateEntityRepository = Mockito.mock(EventTemplateEntityRepository.class);
+  private final GuildEntityRepository guildEntityRepository = Mockito.mock(GuildEntityRepository.class);
+  private final ServerEntityRepository serverEntityRepository = Mockito.mock(ServerEntityRepository.class);
 
   @BeforeEach
   void wireMappers() {
@@ -44,11 +51,25 @@ class EventEntityMapperTest {
     MapperTestSupport.setField(eventEntityMapper, "eventTemplateEntityMapper", eventTemplateEntityMapper);
     MapperTestSupport.setField(eventEntityMapper, "eventTeamEntityMapper", eventTeamEntityMapper);
     MapperTestSupport.setField(eventEntityMapper, "eventTemplateEntityRepository", eventTemplateEntityRepository);
+
+    GuildEntity guildEntity = new GuildEntity();
+    PanacheQuery<GuildEntity> guildQuery = Mockito.mock(PanacheQuery.class);
+    Mockito.when(guildQuery.firstResultOptional()).thenReturn(Optional.of(guildEntity));
+    Mockito.when(guildEntityRepository.find("server.serverId = ?1 and name = ?2", "guild-1", "Raid Guild"))
+        .thenReturn(guildQuery);
+    MapperTestSupport.setField(eventEntityMapper, "guildEntityRepository", guildEntityRepository);
+
+    ServerEntity serverEntity = new ServerEntity();
+    serverEntity.setServerId("guild-1");
+    guildEntity.setServer(serverEntity);
+    Mockito.when(serverEntityRepository.findByIdOptional("guild-1"))
+        .thenReturn(Optional.of(serverEntity));
+    MapperTestSupport.setField(guildEntityMapper, "serverEntityRepository", serverEntityRepository);
   }
 
   @Test
   void mapsEventAggregateBothDirections() {
-    Guild guild = new Guild("guild-1", "Raid Guild");
+    Guild guild = new Guild("Raid Guild", "guild-1");
     GuildMember hoster = new GuildMember("hoster-1");
     GuildMember raider = new GuildMember("member-1");
 
@@ -91,7 +112,7 @@ class EventEntityMapperTest {
 
     EventEntity entity = eventEntityMapper.toEntity(event);
 
-    assertEquals("guild-1", entity.getGuild().getGuildId());
+    assertEquals("guild-1", entity.getGuild().getServer().getServerId());
     assertEquals("hoster-1", entity.getHoster().getUserId());
     assertEquals("template-1", entity.getEventTemplate().getKey());
     assertEquals("category-1", entity.getCategoryId());
@@ -116,7 +137,7 @@ class EventEntityMapperTest {
     Event roundTrip = eventEntityMapper.toDomain(entity);
 
     assertEquals(99L, roundTrip.getId());
-    assertEquals("guild-1", roundTrip.getGuild().getGuildId());
+    assertEquals("guild-1", roundTrip.getGuild().getServerId());
     assertEquals("hoster-1", roundTrip.getHoster().getUserId());
     assertEquals("template-1", roundTrip.getTemplate().getKey());
     assertEquals("category-1", roundTrip.getCategoryId());

@@ -1,12 +1,11 @@
 package de.qf0xb.raidsignupbot.application.service.event;
 
 import de.qf0xb.raidsignupbot.application.port.EventApplicationPort;
-import de.qf0xb.raidsignupbot.application.port.EventSignupChannelApplicationPort;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.guild.Guild;
 import de.qf0xb.raidsignupbot.domain.model.guild.GuildMember;
 import de.qf0xb.raidsignupbot.domain.model.template.EventTemplate;
-import jakarta.enterprise.inject.Instance;
+import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.adapter.DiscordEventUIApplicationAdapter;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -28,9 +27,8 @@ class EventLifecycleManagerTest {
     EventApplicationPort eventApplicationPort = mock(EventApplicationPort.class);
     EventService eventService = mock(EventService.class);
     @SuppressWarnings("unchecked")
-    Instance<EventSignupChannelApplicationPort> signupPort = mock(Instance.class);
-    @SuppressWarnings("unchecked")
     jakarta.enterprise.event.Event<EventLifecycleNotification> cdiEvent = mock(jakarta.enterprise.event.Event.class);
+    DiscordEventUIApplicationAdapter discordEventUIApplicationAdapter = mock(DiscordEventUIApplicationAdapter.class);
 
     Event event = Event.builder()
         .id(42L)
@@ -49,8 +47,8 @@ class EventLifecycleManagerTest {
     EventLifecycleManager manager = new EventLifecycleManager(
         eventApplicationPort,
         eventService,
-        signupPort,
-        cdiEvent);
+        cdiEvent,
+        discordEventUIApplicationAdapter);
 
     manager.runLifecycleChecks();
 
