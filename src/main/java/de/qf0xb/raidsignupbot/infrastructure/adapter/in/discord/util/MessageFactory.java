@@ -149,10 +149,15 @@ public class MessageFactory {
       throw new IllegalStateException("No strategies configured for event.");
     }
 
+    builder.append(String.format(
+        "%s - Backup (low priority: -%d)\n\n",
+        EventMemberSignup.BACKUP_EMOJI,
+        EventMemberSignup.BACKUP_PRIORITY_PENALTY));
+
     builder.append("## **How to join:**\n");
     builder.append("1. React with the emoji of your choice to the message below.\n");
     builder.append("2. Wait for the bot to assign you a role.\n");
-    builder.append("3. You automatically get the raider role when assigned to a position.\n");
+    builder.append("3. You automatically get the raider role when assigned to a position or assigned backup.\n");
 
     builder.append("\n\n");
     builder.append("## **Rules:**\n");
@@ -252,7 +257,9 @@ public class MessageFactory {
           .map(this::resolveEmoji)
           .ifPresentOrElse(
               emojiSlugs::add,
-              () -> emojiSlugs.add(roleKey));
+              () -> emojiSlugs.add(EventMemberSignup.BACKUP_ROLE_KEY.equals(roleKey)
+                  ? EventMemberSignup.BACKUP_EMOJI
+                  : roleKey));
     }
 
     return emojiSlugs.isEmpty() ? "[]" : String.join(", ", emojiSlugs);

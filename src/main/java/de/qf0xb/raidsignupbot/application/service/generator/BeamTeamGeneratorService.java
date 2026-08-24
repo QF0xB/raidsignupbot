@@ -238,7 +238,7 @@ public class BeamTeamGeneratorService implements TeamGeneratorService {
         .filter(assignment -> !alreadyAssignedUtility(utilityAssignments, utilityRole, assignment.signup()))
         .sorted(Comparator
             .comparingInt((RoleAssignment assignment) -> assignment.signup().getRoleKeys().size())
-            .thenComparing(assignment -> -assignment.signup().getGuildMember().getPriority())
+            .thenComparing(assignment -> -assignment.signup().getEffectivePriority())
             .thenComparing(assignment -> assignment.signup().getGuildMember().getUserId()))
         .toList();
 
@@ -282,7 +282,7 @@ public class BeamTeamGeneratorService implements TeamGeneratorService {
         .sorted(Comparator
             .comparingInt((RoleAssignment assignment) -> assignment.roleKey().equals(slot.getKey()) ? 0 : 1)
             .thenComparingInt(assignment -> assignment.signup().getRoleKeys().size())
-            .thenComparing(assignment -> -assignment.signup().getGuildMember().getPriority())
+            .thenComparing(assignment -> -assignment.signup().getEffectivePriority())
             .thenComparing(assignment -> assignment.signup().getGuildMember().getUserId()))
         .collect(Collectors.collectingAndThen(
             Collectors.toMap(
@@ -326,8 +326,7 @@ public class BeamTeamGeneratorService implements TeamGeneratorService {
 
     private int priorityScore() {
       return usedSignups.stream()
-          .map(EventMemberSignup::getGuildMember)
-          .mapToLong(GuildMember::getPriority)
+          .mapToLong(EventMemberSignup::getEffectivePriority)
           .mapToInt(priority -> Math.toIntExact(priority))
           .sum();
     }

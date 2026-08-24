@@ -50,11 +50,27 @@ public class Collector {
       }
     }
 
+    collectRoleReactions(
+        event,
+        signUp,
+        signupsByUserId,
+        EventMemberSignup.BACKUP_EMOJI,
+        EventMemberSignup.BACKUP_ROLE_KEY);
+
     return new ArrayList<>(signupsByUserId.values());
   }
 
   private void collectRoleReactions(Event event, Message signUp, Map<String, EventMemberSignup> signupsByUserId, EventRole role) {
-    signUp.retrieveReactionUsers(discordEmojiResolver.resolve(role.getEmojiSlug()))
+    collectRoleReactions(event, signUp, signupsByUserId, role.getEmojiSlug(), role.getKey());
+  }
+
+  private void collectRoleReactions(
+      Event event,
+      Message signUp,
+      Map<String, EventMemberSignup> signupsByUserId,
+      String emojiSlug,
+      String roleKey) {
+    signUp.retrieveReactionUsers(discordEmojiResolver.resolve(emojiSlug))
         .complete()
         .stream()
         .map(User::getId)
@@ -66,7 +82,7 @@ public class Collector {
                   userId,
                   ignored -> new EventMemberSignup(guildMember)
               );
-          signup.addRoleKey(role.getKey());
+          signup.addRoleKey(roleKey);
         });
   }
 }

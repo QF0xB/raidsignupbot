@@ -14,6 +14,10 @@ import java.util.Set;
 @RequiredArgsConstructor
 @ToString
 public class EventMemberSignup {
+  public static final String BACKUP_ROLE_KEY = "__backup__";
+  public static final String BACKUP_EMOJI = "🛟";
+  public static final long BACKUP_PRIORITY_PENALTY = 100L;
+
   private final GuildMember guildMember;
   @Getter(AccessLevel.NONE)
   private final Set<String> roleKeys = new HashSet<>();
@@ -37,6 +41,14 @@ public class EventMemberSignup {
 
   public boolean wantsRole(String roleKey) {
     return roleKeys.contains(roleKey);
+  }
+
+  public boolean wantsBackup() {
+    return wantsRole(BACKUP_ROLE_KEY);
+  }
+
+  public long getEffectivePriority() {
+    return guildMember.getPriority() - (wantsBackup() ? BACKUP_PRIORITY_PENALTY : 0L);
   }
 
   public Set<String> getRoleKeys() {
