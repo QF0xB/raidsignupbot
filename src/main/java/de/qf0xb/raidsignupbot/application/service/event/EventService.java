@@ -35,6 +35,7 @@ public class EventService {
   private final OrToolsTeamGeneratorService teamGeneratorService = new OrToolsTeamGeneratorService();
   private final EventUIApplicationPort eventUIApplicationPort;
   private final RaidCalendarService raidCalendarService;
+  private final EventBackupService eventBackupService;
   private final Map<Long, TeamGeneratorResult> pendingApprovalResults = new ConcurrentHashMap<>();
 
   public EventService(
@@ -44,7 +45,8 @@ public class EventService {
       GuildMemberService guildMemberService,
       TemplateService templateService,
       EventUIApplicationPort eventUIApplicationPort,
-      RaidCalendarService raidCalendarService) {
+      RaidCalendarService raidCalendarService,
+      EventBackupService eventBackupService) {
     this.eventApplicationPort = eventApplicationPort;
     this.guildService = guildService;
     this.serverService = serverService;
@@ -52,6 +54,7 @@ public class EventService {
     this.templateService = templateService;
     this.eventUIApplicationPort = eventUIApplicationPort;
     this.raidCalendarService = raidCalendarService;
+    this.eventBackupService = eventBackupService;
   }
 
   @Transactional
@@ -250,6 +253,7 @@ public class EventService {
     event.setTeamsGenerated(true);
     event.clearApprovalPending();
     eventUIApplicationPort.publishTeams(event, result);
+    eventUIApplicationPort.requestBackups(event, eventBackupService.findOffers(eventId));
     return eventApplicationPort.save(event);
   }
 
@@ -266,12 +270,14 @@ public class EventService {
     event.setTeamsGenerated(false);
     event.clearApprovalPending();
     pendingApprovalResults.remove(eventId);
+    eventBackupService.clearOffers(eventId);
     return eventApplicationPort.save(event);
   }
 
   @Transactional
   public TeamGeneratorResult generateTeams(Event event, List<EventMemberSignup> signups) {
     TeamGeneratorResult results = teamGeneratorService.generateTeams(event, signups);
+    eventBackupService.registerOffers(event, results);
     results.teams().forEach(event::addTeam);
     results.unmatchedSignups().forEach(eventMemberSignup -> {
       guildMemberService.couldNotFindRole(eventMemberSignup.getGuildMember().getUserId());
@@ -292,6 +298,7 @@ public class EventService {
     event.setTeamsGenerated(true);
     pendingApprovalResults.remove(event.getId());
     eventUIApplicationPort.publishTeams(event, results);
+    eventUIApplicationPort.requestBackups(event, eventBackupService.findOffers(event.getId()));
   }
 
   private GuildMember resolveEventAdmin(String eventAdminUserId, GuildMember hoster) {

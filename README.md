@@ -10,7 +10,7 @@ Each guild can have at most one raid on a calendar day. The check includes both 
 
 This project uses Quarkus, the Supersonic Subatomic Java Framework.
 
-Every event signup message includes a 🛟 Backup reaction. Members should select their normal roles as well as Backup; the Backup selection applies a `-100` priority penalty without excluding them from normal role assignment.
+After teams are generated, players without a team receive a private message asking whether they are available as a backup for each selected position. Only one backup can accept each position.
 
 If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
 

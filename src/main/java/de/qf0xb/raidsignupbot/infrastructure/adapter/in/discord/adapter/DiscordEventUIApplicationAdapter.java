@@ -7,6 +7,7 @@ import de.qf0xb.raidsignupbot.application.service.server.ServerService;
 import de.qf0xb.raidsignupbot.application.service.event.EventLifecycleNotification;
 import de.qf0xb.raidsignupbot.application.service.event.EventLifecycleStage;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
+import de.qf0xb.raidsignupbot.domain.model.event.EventBackupOffer;
 import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
 import de.qf0xb.raidsignupbot.domain.model.event.EventSlot;
 import de.qf0xb.raidsignupbot.domain.model.event.EventUtilityAssignment;
@@ -155,7 +156,6 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
       }
     }
 
-    message.addReaction(emojiResolver.resolve(EventMemberSignup.BACKUP_EMOJI)).queue();
   }
 
   private void updateSignupMessage(Event event) {
@@ -168,7 +168,7 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
     textChannel.retrieveMessageById(event.getMessageId())
         .queue(message -> message.editMessage(ping)
             .setEmbeds(messageFactory.buildSignupEmbed(event).build())
-            .queue(ignored -> message.addReaction(emojiResolver.resolve(EventMemberSignup.BACKUP_EMOJI)).queue()));
+            .queue());
   }
 
   @Override
@@ -196,7 +196,6 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
       }
     }
 
-    removeReactionIfPresent(signUpMessage, EventMemberSignup.BACKUP_EMOJI, user);
   }
 
   @Override
@@ -217,6 +216,26 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
           .setEmbeds(embedBuilder.build())
           .complete();
       event.setTeamsMessageId(message.getId());
+    }
+  }
+
+  @Override
+  public void requestBackups(Event event, List<EventBackupOffer> offers) {
+    for (EventBackupOffer offer : offers) {
+      try {
+        User user = api.retrieveUserById(offer.userId()).complete();
+        user.openPrivateChannel().complete()
+            .sendMessage(String.format(
+                "You were not assigned to a team for **%s**. Are you available as the backup for **%s**?",
+                event.getTemplate().getName(),
+                offer.roleName()))
+            .setComponents(ActionRow.of(
+                Button.success("backup-offer:" + offer.offerId() + ":accept", "Yes, I can backup"),
+                Button.danger("backup-offer:" + offer.offerId() + ":decline", "No, I am unavailable")))
+            .queue();
+      } catch (RuntimeException ex) {
+        log.warn("Could not send backup request to user {} for event {}", offer.userId(), event.getId(), ex);
+      }
     }
   }
 

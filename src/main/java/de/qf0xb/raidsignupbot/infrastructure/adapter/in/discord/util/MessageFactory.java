@@ -149,15 +149,10 @@ public class MessageFactory {
       throw new IllegalStateException("No strategies configured for event.");
     }
 
-    builder.append(String.format(
-        "%s - Backup (low priority: -%d)\n\n",
-        EventMemberSignup.BACKUP_EMOJI,
-        EventMemberSignup.BACKUP_PRIORITY_PENALTY));
-
     builder.append("## **How to join:**\n");
     builder.append("1. React with the emoji of your choice to the message below.\n");
     builder.append("2. Wait for the bot to assign you a role.\n");
-    builder.append("3. You automatically get the raider role when assigned to a position or assigned backup.\n");
+    builder.append("3. You automatically get the raider role when assigned to a position.\n");
 
     builder.append("\n\n");
     builder.append("## **Rules:**\n");
@@ -215,9 +210,8 @@ public class MessageFactory {
       count++;
     }
 
-    sb.append("Backups:\n");
-    for(EventMemberSignup signup : result.unmatchedSignups()) {
-      sb.append(String.format("<@%s> - %s\n", signup.getGuildMember().getUserId(), formatRoleSlugs(event, signup.getRoleKeys())));
+    if (!result.unmatchedSignups().isEmpty()) {
+      sb.append("Players without a team were asked privately about backup availability.\n");
     }
     return sb.toString();
   }
@@ -245,30 +239,6 @@ public class MessageFactory {
     sb.append("\n\n");
 
     return sb.toString();
-  }
-
-  private String formatRoleSlugs(Event event, Set<String> roleKeys) {
-    Set<String> emojiSlugs = new LinkedHashSet<>();
-
-    for (String roleKey : roleKeys) {
-      event.getTemplate().getStrategies().stream()
-          .flatMap(strategy -> strategy.getPrimaryRoles().stream())
-          .filter(role -> role.getKey().equals(roleKey))
-          .findFirst()
-          .or(() -> event.getTemplate().getStrategies().stream()
-              .flatMap(strategy -> strategy.getUtilityRoles().stream())
-              .filter(role -> role.getKey().equals(roleKey))
-              .findFirst())
-          .map(EventRole::getEmojiSlug)
-          .map(this::resolveEmoji)
-          .ifPresentOrElse(
-              emojiSlugs::add,
-              () -> emojiSlugs.add(EventMemberSignup.BACKUP_ROLE_KEY.equals(roleKey)
-                  ? EventMemberSignup.BACKUP_EMOJI
-                  : roleKey));
-    }
-
-    return emojiSlugs.isEmpty() ? "[]" : String.join(", ", emojiSlugs);
   }
 
   private String formatEligiblePrimaryRoleKeys(EventStrategy strategy, EventUtilityRole utilityRole) {

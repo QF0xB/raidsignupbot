@@ -257,7 +257,7 @@ public class OrToolsTeamGeneratorService implements TeamGeneratorService {
     List<Long> fairnessWeights = new ArrayList<>();
     for (EventMemberSignup signup : members) {
       String memberId = signup.getGuildMember().getUserId();
-      long priority = signup.getEffectivePriority();
+      long priority = Math.max(0L, signup.getGuildMember().getPriority());
       if (priority == 0L) {
         continue;
       }
