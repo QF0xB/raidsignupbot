@@ -137,9 +137,12 @@ public class RaidCalendarService {
     if (!Objects.equals(entry.getGuildName(), guildName)
         || !Objects.equals(entry.getHosterUserId(), hosterUserId)
         || !Objects.equals(entry.getTemplateKey(), templateKey)
-        || !Objects.equals(entry.getStart(), start)
-        || !Objects.equals(entry.getEnd(), end)) {
-      throw new IllegalArgumentException("The event details must match the selected calendar entry");
+        || !sameCalendarDay(entry.getStart(), start)
+        || !Objects.equals(
+            java.time.Duration.between(entry.getStart(), entry.getEnd()),
+            java.time.Duration.between(start, end))) {
+      throw new IllegalArgumentException(
+          "The event guild, day, host, template, and duration must match the selected calendar entry");
     }
   }
 
@@ -250,6 +253,13 @@ public class RaidCalendarService {
         && Objects.equals(
             raidDay,
             existingStart.atZone(ZoneId.systemDefault()).toLocalDate());
+  }
+
+  private boolean sameCalendarDay(Instant left, Instant right) {
+    return left != null
+        && right != null
+        && left.atZone(ZoneId.systemDefault()).toLocalDate()
+            .equals(right.atZone(ZoneId.systemDefault()).toLocalDate());
   }
 
   private String formatEmoji(String emojiSlug) {

@@ -34,7 +34,10 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.modals.Modal;
 
 import java.time.Duration;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -61,6 +64,9 @@ public class EventCreationStepModalWizard extends StepModalWizard {
   private static final String SIGNUP_FIELD = "signup-channel-id";
   private static final String VOICE_FIELD = "voice-channel-id";
   private static final String EVENT_ID_FIELD = "event-id";
+  private static final DateTimeFormatter CALENDAR_ENTRY_FORMAT =
+      DateTimeFormatter.ofPattern("EEE dd.MM.yy HH:mm", Locale.ENGLISH)
+          .withZone(ZoneId.systemDefault());
 
   @Inject
   JDA api;
@@ -292,7 +298,8 @@ public class EventCreationStepModalWizard extends StepModalWizard {
             .filter(entry -> guildManager || session.getUserId().equals(entry.getHosterUserId()))
             .limit(25)
             .map(entry -> SelectOption.of(
-                entry.getId() + " - " + entry.getGuildName() + " / " + entry.getTemplateKey(),
+                entry.getGuildName() + " / " + entry.getTemplateKey()
+                    + " - " + CALENDAR_ENTRY_FORMAT.format(entry.getStart()),
                 String.valueOf(entry.getId())))
             .collect(Collectors.toSet());
 
@@ -300,8 +307,14 @@ public class EventCreationStepModalWizard extends StepModalWizard {
             .addOptions(calendarOptions)
             .setRequired(true)
             .build();
+        TextInput timestampInput = TextInput.create(START_FIELD, TextInputStyle.SHORT)
+            .setPlaceholder("Unix timestamp, e.g. 1787572800")
+            .setRequired(true)
+            .build();
         return Modal.create(modalId, "Create Event - Choose Calendar Entry")
-            .addComponents(Label.of("Calendar entry:", calendarSelect))
+            .addComponents(
+                Label.of("Calendar entry:", calendarSelect),
+                Label.of("Event start time:", timestampInput))
             .build();
       }
 
@@ -379,11 +392,13 @@ public class EventCreationStepModalWizard extends StepModalWizard {
         if (!entry.getServerId().equals(Objects.requireNonNull(event.getGuild()).getId())) {
           throw new IllegalArgumentException("The selected calendar entry belongs to another server");
         }
+        String timestamp = requiredValue(event, START_FIELD);
+        parseTimestamp(timestamp);
         session.putValue(CALENDAR_ENTRY_FIELD, entryId);
         session.putValue(TEMPLATE_FIELD, entry.getTemplateKey());
         session.putValue(HOSTER_FIELD, entry.getHosterUserId());
         session.putValue(GUILD_FIELD, entry.getGuildName());
-        session.putValue(START_FIELD, String.valueOf(entry.getStart().getEpochSecond()));
+        session.putValue(START_FIELD, timestamp);
         session.putValue(DURATION_FIELD, entry.getDuration());
         return;
       }
