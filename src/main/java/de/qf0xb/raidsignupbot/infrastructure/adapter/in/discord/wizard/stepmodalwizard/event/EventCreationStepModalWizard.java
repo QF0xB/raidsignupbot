@@ -238,7 +238,7 @@ public class EventCreationStepModalWizard extends StepModalWizard {
     try {
       raidCalendarService.requireCalendarConfigured(event.getGuild().getId());
       boolean guildManager = commandPermissionService.isAllowed(event, CommandAccessLevel.MANAGE_GUILDS);
-      boolean ownsCalendarEntry = raidCalendarService.findUpcomingEntries(event.getGuild().getId()).stream()
+      boolean ownsCalendarEntry = raidCalendarService.findUpcomingAvailableEntries(event.getGuild().getId()).stream()
           .anyMatch(entry -> event.getUser().getId().equals(entry.getHosterUserId()));
       if (!guildManager && !ownsCalendarEntry) {
         event.reply("Only the event owner or a guild manager can create calendar events.")
@@ -246,7 +246,7 @@ public class EventCreationStepModalWizard extends StepModalWizard {
             .queue();
         return;
       }
-      if (raidCalendarService.findUpcomingEntries(event.getGuild().getId()).isEmpty()) {
+      if (raidCalendarService.findUpcomingAvailableEntries(event.getGuild().getId()).isEmpty()) {
         event.reply("There are no available events on the raid calendar.")
             .setEphemeral(true)
             .queue();
@@ -286,7 +286,7 @@ public class EventCreationStepModalWizard extends StepModalWizard {
       if (!session.getValues().containsKey(EVENT_ID_FIELD)) {
         boolean guildManager = Boolean.parseBoolean(
             session.getValues().getOrDefault(CREATOR_GUILD_MANAGER_FIELD, "false"));
-        Set<SelectOption> calendarOptions = raidCalendarService.findUpcomingEntries(
+        Set<SelectOption> calendarOptions = raidCalendarService.findUpcomingAvailableEntries(
                 Objects.requireNonNull(event.getGuild(), "This command is only runnable on a guild.").getId())
             .stream()
             .filter(entry -> guildManager || session.getUserId().equals(entry.getHosterUserId()))

@@ -72,8 +72,15 @@ public class RaidCalendarService {
   public List<RaidCalendarEntry> findUpcomingEntries(String serverId) {
     Instant now = Instant.now();
     return calendarPort.findByServerId(serverId).stream()
-        .filter(entry -> entry.getEventId() == null && entry.getEnd().isAfter(now))
+        .filter(entry -> entry.getEnd().isAfter(now))
         .sorted(Comparator.comparing(RaidCalendarEntry::getStart))
+        .toList();
+  }
+
+  @Transactional
+  public List<RaidCalendarEntry> findUpcomingAvailableEntries(String serverId) {
+    return findUpcomingEntries(serverId).stream()
+        .filter(entry -> entry.getEventId() == null)
         .toList();
   }
 
