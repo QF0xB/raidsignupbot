@@ -6,6 +6,7 @@ import de.qf0xb.raidsignupbot.domain.model.server.Server;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 
@@ -27,12 +28,16 @@ public class RaidCalendarPublisher {
       throw new IllegalStateException("Configured raid calendar channel does not exist");
     }
 
-    String content = calendarService.render(serverId);
+    EmbedBuilder embed = new EmbedBuilder()
+        .setTitle("Raid Calendar")
+        .setDescription(calendarService.render(serverId))
+        .setColor(0x5865F2);
     if (server.getRaidCalendarMessageId() != null) {
       try {
         channel.retrieveMessageById(server.getRaidCalendarMessageId())
             .complete()
-            .editMessage(content)
+            .editMessage("")
+            .setEmbeds(embed.build())
             .complete();
         return;
       } catch (RuntimeException ignored) {
@@ -40,7 +45,7 @@ public class RaidCalendarPublisher {
       }
     }
 
-    Message message = channel.sendMessage(content).complete();
+    Message message = channel.sendMessageEmbeds(embed.build()).complete();
     server.setRaidCalendarMessageId(message.getId());
     serverService.save(server);
   }

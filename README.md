@@ -2,7 +2,7 @@
 
 ## Raid calendar
 
-Guild administrators can configure the calendar with `/calendarconfig`, providing a text channel and the single member who owns event creation. Calendar entries are managed with `/calendaradd` and `/calendarremove`; `/calendar` refreshes the configured channel.
+Guild administrators can configure the calendar with `/calendarconfig`, providing a text channel and the single member who owns event creation. These commands use the bot's modal workflow: `/calendarconfig` sets the channel and owner, `/calendaradd` schedules an entry, and `/calendarremove` removes an unused entry. `/calendar` refreshes the configured channel's calendar embed.
 
 The configured owner creates signup events through `/createevent`. The wizard only offers unused entries from the calendar, and event creation is rejected unless the selected event still matches that entry. This keeps the calendar channel as the source of truth for upcoming events.
 
