@@ -51,7 +51,7 @@ public class CalendarAddCommand extends StepModalWizard {
   EventTemplateApplicationPort templateApplicationPort;
 
   public CalendarAddCommand() {
-    super("calendaradd", "Add an event to the raid calendar.", CommandAccessLevel.MANAGE_GUILDS);
+    super("scheduleevent", "Schedule an event on the raid calendar.", CommandAccessLevel.MANAGE_GUILDS);
     addStep(new AddEntryStep());
   }
 
