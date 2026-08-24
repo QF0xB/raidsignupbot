@@ -150,7 +150,9 @@ public class MessageFactory {
     }
 
     builder.append(String.format(
-        "%s - Backup (low priority: -%d)\n\n",
+        "%s - Backup (low priority: -%d)\n"
+            + "Select this together with your normal roles if you are available as a fallback. "
+            + "If you are not assigned to a team, the bot will DM you about backing up a selected position.\n\n",
         EventMemberSignup.BACKUP_EMOJI,
         EventMemberSignup.BACKUP_PRIORITY_PENALTY));
 
