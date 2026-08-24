@@ -12,6 +12,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
@@ -56,23 +57,26 @@ public class RaidCalendarService {
     templatePort.findByServerIdAndKey(serverId, templateKey)
         .orElseThrow(() -> new IllegalArgumentException("Template " + templateKey + " not found"));
     validateTimes(start, end);
-    ensureGuildHasNoRaidOnDay(serverId, guildName, start, null, null);
+    java.time.Duration duration = java.time.Duration.between(start, end);
+    Instant calendarStart = start.atZone(ZoneId.systemDefault()).toLocalDate()
+        .atStartOfDay(ZoneId.systemDefault()).toInstant();
+    ensureGuildHasNoRaidOnDay(serverId, guildName, calendarStart, null, null);
 
     return calendarPort.save(RaidCalendarEntry.builder()
         .serverId(serverId)
         .guildName(guildName)
         .hosterUserId(hosterUserId)
         .templateKey(templateKey)
-        .start(start)
-        .end(end)
+        .start(calendarStart)
+        .end(calendarStart.plus(duration))
         .build());
   }
 
   @Transactional
   public List<RaidCalendarEntry> findUpcomingEntries(String serverId) {
-    Instant now = Instant.now();
+    LocalDate today = LocalDate.now(ZoneId.systemDefault());
     return calendarPort.findByServerId(serverId).stream()
-        .filter(entry -> entry.getEnd().isAfter(now))
+        .filter(entry -> !entry.getStart().atZone(ZoneId.systemDefault()).toLocalDate().isBefore(today))
         .sorted(Comparator.comparing(RaidCalendarEntry::getStart))
         .toList();
   }

@@ -26,6 +26,10 @@ import net.dv8tion.jda.api.modals.Modal;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -37,6 +41,7 @@ public class CalendarAddCommand extends StepModalWizard {
   private static final String HOSTER_FIELD = "calendar-hoster";
   private static final String START_FIELD = "calendar-start";
   private static final String DURATION_FIELD = "calendar-duration";
+  private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 
   @Inject
   RaidCalendarService calendarService;
@@ -68,7 +73,8 @@ public class CalendarAddCommand extends StepModalWizard {
   public String onComplete(StepModalWizardSession session, ModalInteractionEvent event) {
     try {
       String serverId = Objects.requireNonNull(event.getGuild(), "This command can only be used in a guild.").getId();
-      Instant start = Instant.ofEpochSecond(Long.parseLong(session.requireValue(START_FIELD).trim()));
+      LocalDate date = parseDate(session.requireValue(START_FIELD));
+      Instant start = date.atStartOfDay(ZoneId.systemDefault()).toInstant();
       Duration duration = parseDuration(session.requireValue(DURATION_FIELD));
       var entry = calendarService.createEntry(
           serverId,
@@ -114,7 +120,7 @@ public class CalendarAddCommand extends StepModalWizard {
           .setRequired(true)
           .build();
       TextInput startInput = TextInput.create(START_FIELD, TextInputStyle.SHORT)
-          .setPlaceholder(String.valueOf(Instant.now().getEpochSecond()))
+          .setPlaceholder("2026-08-24")
           .setRequired(true)
           .build();
       RadioGroup durationSelect = RadioGroup.create(DURATION_FIELD)
@@ -130,7 +136,7 @@ public class CalendarAddCommand extends StepModalWizard {
               Label.of("Guild:", guildSelect),
               Label.of("Event template:", templateSelect),
               Label.of("Host:", hosterSelect),
-              Label.of("Start Unix timestamp:", startInput),
+              Label.of("Calendar date (YYYY-MM-DD):", startInput),
               Label.of("Duration:", durationSelect))
           .build();
     }
@@ -141,13 +147,17 @@ public class CalendarAddCommand extends StepModalWizard {
       session.putValue(TEMPLATE_FIELD, requiredValue(event, TEMPLATE_FIELD));
       session.putValue(HOSTER_FIELD, requiredValue(event, HOSTER_FIELD));
       String start = requiredValue(event, START_FIELD);
-      try {
-        Instant.ofEpochSecond(Long.parseLong(start.trim()));
-      } catch (NumberFormatException ex) {
-        throw new IllegalArgumentException("Start must be a Unix epoch timestamp");
-      }
+      parseDate(start);
       session.putValue(START_FIELD, start);
       session.putValue(DURATION_FIELD, requiredValue(event, DURATION_FIELD));
+    }
+  }
+
+  private LocalDate parseDate(String value) {
+    try {
+      return LocalDate.parse(value.trim(), DATE_FORMAT);
+    } catch (DateTimeParseException ex) {
+      throw new IllegalArgumentException("Date must use the format YYYY-MM-DD");
     }
   }
 

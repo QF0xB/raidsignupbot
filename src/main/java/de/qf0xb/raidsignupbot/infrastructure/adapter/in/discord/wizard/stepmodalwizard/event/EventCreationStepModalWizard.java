@@ -65,7 +65,7 @@ public class EventCreationStepModalWizard extends StepModalWizard {
   private static final String VOICE_FIELD = "voice-channel-id";
   private static final String EVENT_ID_FIELD = "event-id";
   private static final DateTimeFormatter CALENDAR_ENTRY_FORMAT =
-      DateTimeFormatter.ofPattern("EEE dd.MM.yy HH:mm", Locale.ENGLISH)
+    DateTimeFormatter.ofPattern("EEE dd.MM.yy", Locale.ENGLISH)
           .withZone(ZoneId.systemDefault());
 
   @Inject
