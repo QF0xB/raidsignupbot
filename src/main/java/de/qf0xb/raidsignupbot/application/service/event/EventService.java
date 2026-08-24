@@ -160,6 +160,42 @@ public class EventService {
 
     GuildMember leftMember = guildMemberService.findGuildMemberById(leftUserId);
     GuildMember rightMember = guildMemberService.findGuildMemberById(rightUserId);
+    swapMembers(event, leftMember, rightMember);
+
+    Event savedEvent = eventApplicationPort.save(event);
+    eventUIApplicationPort.updateTeams(savedEvent, new TeamGeneratorResult(savedEvent.getTeams(), List.of()));
+    return eventApplicationPort.save(savedEvent);
+  }
+
+  @Transactional
+  public Event swapTeamsForApproval(Long eventId, String leftUserId, String rightUserId) {
+    Event event = findEventById(eventId);
+    if (!event.isApprovalPending() || event.getTeams().isEmpty()) {
+      throw new IllegalStateException("Event teams do not have a pending approval proposal");
+    }
+
+    TeamGeneratorResult pendingResult = pendingApprovalResults.get(eventId);
+    if (pendingResult == null) {
+      throw new IllegalStateException("No pending team result stored for event " + eventId);
+    }
+
+    GuildMember leftMember = guildMemberService.findGuildMemberById(leftUserId);
+    GuildMember rightMember = guildMemberService.findGuildMemberById(rightUserId);
+    if (!event.getTeams().stream().anyMatch(team -> team.containsMember(leftMember))
+        || !event.getTeams().stream().anyMatch(team -> team.containsMember(rightMember))) {
+      throw new IllegalStateException("Approval editing can only swap members already assigned to the proposed teams");
+    }
+    swapMembers(event, leftMember, rightMember);
+
+    TeamGeneratorResult updatedResult = new TeamGeneratorResult(
+        List.copyOf(event.getTeams()), pendingResult.unmatchedSignups());
+    pendingApprovalResults.put(eventId, updatedResult);
+    Event savedEvent = eventApplicationPort.save(event);
+    eventUIApplicationPort.sendTeamsForApproval(savedEvent, updatedResult);
+    return savedEvent;
+  }
+
+  private void swapMembers(Event event, GuildMember leftMember, GuildMember rightMember) {
     if (leftMember.getUserId().equals(rightMember.getUserId())) {
       throw new IllegalArgumentException("Cannot swap the same member");
     }
@@ -190,10 +226,6 @@ public class EventService {
     if (changedAssignments == 0) {
       throw new IllegalStateException("Swap or substitution did not change any assignments for event " + event.getId());
     }
-
-    Event savedEvent = eventApplicationPort.save(event);
-    eventUIApplicationPort.updateTeams(savedEvent, new TeamGeneratorResult(savedEvent.getTeams(), List.of()));
-    return eventApplicationPort.save(savedEvent);
   }
 
   @Transactional

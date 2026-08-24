@@ -251,7 +251,8 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
 
     ActionRow actions = ActionRow.of(
         Button.success("event-approval:" + event.getId() + ":approve", "Approve"),
-        Button.danger("event-approval:" + event.getId() + ":reject", "Reject")
+        Button.danger("event-approval:" + event.getId() + ":reject", "Reject"),
+        Button.secondary("event-approval:" + event.getId() + ":swap", "Swap members")
     );
 
     try {
@@ -270,7 +271,8 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
           .setEmbeds(embedBuilder.build())
           .setComponents(ActionRow.of(
               Button.success("event-approval:" + event.getId() + ":approve", "Approve"),
-              Button.danger("event-approval:" + event.getId() + ":reject", "Reject")
+              Button.danger("event-approval:" + event.getId() + ":reject", "Reject"),
+              Button.secondary("event-approval:" + event.getId() + ":swap", "Swap members")
           ))
           .complete();
     }
