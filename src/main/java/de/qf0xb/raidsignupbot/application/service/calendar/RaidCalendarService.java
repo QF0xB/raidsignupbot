@@ -1,0 +1,194 @@
+package de.qf0xb.raidsignupbot.application.service.calendar;
+
+import de.qf0xb.raidsignupbot.application.port.RaidCalendarApplicationPort;
+import de.qf0xb.raidsignupbot.application.port.template.EventTemplateApplicationPort;
+import de.qf0xb.raidsignupbot.application.service.guild.GuildService;
+import de.qf0xb.raidsignupbot.application.service.server.ServerService;
+import de.qf0xb.raidsignupbot.domain.model.calendar.RaidCalendarEntry;
+import de.qf0xb.raidsignupbot.domain.model.server.Server;
+import de.qf0xb.raidsignupbot.domain.model.template.EventTemplate;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.transaction.Transactional;
+
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+
+@ApplicationScoped
+public class RaidCalendarService {
+  private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("EEEE dd.MM.yy")
+      .withZone(ZoneId.systemDefault());
+
+  private final RaidCalendarApplicationPort calendarPort;
+  private final ServerService serverService;
+  private final GuildService guildService;
+  private final EventTemplateApplicationPort templatePort;
+
+  public RaidCalendarService(
+      RaidCalendarApplicationPort calendarPort,
+      ServerService serverService,
+      GuildService guildService,
+      EventTemplateApplicationPort templatePort) {
+    this.calendarPort = calendarPort;
+    this.serverService = serverService;
+    this.guildService = guildService;
+    this.templatePort = templatePort;
+  }
+
+  @Transactional
+  public RaidCalendarEntry createEntry(
+      String serverId,
+      String guildName,
+      String hosterUserId,
+      String templateKey,
+      Instant start,
+      Instant end) {
+    Server server = serverService.findServerById(serverId);
+    requireCalendarConfigured(server);
+    guildService.findGuildByServerIdAndName(serverId, guildName);
+    templatePort.findByServerIdAndKey(serverId, templateKey)
+        .orElseThrow(() -> new IllegalArgumentException("Template " + templateKey + " not found"));
+    validateTimes(start, end);
+
+    return calendarPort.save(RaidCalendarEntry.builder()
+        .serverId(serverId)
+        .guildName(guildName)
+        .hosterUserId(hosterUserId)
+        .templateKey(templateKey)
+        .start(start)
+        .end(end)
+        .build());
+  }
+
+  @Transactional
+  public List<RaidCalendarEntry> findUpcomingEntries(String serverId) {
+    Instant now = Instant.now();
+    return calendarPort.findByServerId(serverId).stream()
+        .filter(entry -> entry.getEventId() == null && entry.getEnd().isAfter(now))
+        .sorted(Comparator.comparing(RaidCalendarEntry::getStart))
+        .toList();
+  }
+
+  @Transactional
+  public List<RaidCalendarEntry> findEntries(String serverId) {
+    return calendarPort.findByServerId(serverId).stream()
+        .sorted(Comparator.comparing(RaidCalendarEntry::getStart))
+        .toList();
+  }
+
+  @Transactional
+  public RaidCalendarEntry findEntry(Long entryId) {
+    return calendarPort.findById(entryId)
+        .orElseThrow(() -> new IllegalArgumentException("Calendar entry " + entryId + " not found"));
+  }
+
+  @Transactional
+  public void deleteEntry(String serverId, Long entryId) {
+    RaidCalendarEntry entry = findEntry(entryId);
+    if (!serverId.equals(entry.getServerId())) {
+      throw new IllegalArgumentException("Calendar entry does not belong to this server");
+    }
+    if (entry.getEventId() != null) {
+      throw new IllegalStateException("Calendar entries with a created event cannot be removed");
+    }
+    calendarPort.deleteById(entryId);
+  }
+
+  @Transactional
+  public void validateEventCreation(
+      String serverId,
+      String creatorUserId,
+      Long entryId,
+      String guildName,
+      String hosterUserId,
+      String templateKey,
+      Instant start,
+      Instant end) {
+    Server server = serverService.findServerById(serverId);
+    requireCalendarConfigured(server);
+    if (!Objects.equals(server.getRaidCalendarOwnerId(), creatorUserId)) {
+      throw new IllegalArgumentException("Only the configured raid calendar owner can create events");
+    }
+
+    RaidCalendarEntry entry = findEntry(entryId);
+    if (!serverId.equals(entry.getServerId())) {
+      throw new IllegalArgumentException("Calendar entry does not belong to this server");
+    }
+    if (entry.getEventId() != null) {
+      throw new IllegalStateException("This calendar entry already has an event");
+    }
+    if (!Objects.equals(entry.getGuildName(), guildName)
+        || !Objects.equals(entry.getHosterUserId(), hosterUserId)
+        || !Objects.equals(entry.getTemplateKey(), templateKey)
+        || !Objects.equals(entry.getStart(), start)
+        || !Objects.equals(entry.getEnd(), end)) {
+      throw new IllegalArgumentException("The event details must match the selected calendar entry");
+    }
+  }
+
+  @Transactional
+  public void markEventCreated(Long entryId, Long eventId) {
+    RaidCalendarEntry entry = findEntry(entryId);
+    if (entry.getEventId() != null) {
+      throw new IllegalStateException("This calendar entry already has an event");
+    }
+    entry.setEventId(eventId);
+    calendarPort.save(entry);
+  }
+
+  public String render(String serverId) {
+    List<RaidCalendarEntry> entries = findUpcomingEntries(serverId);
+    if (entries.isEmpty()) {
+      return "No upcoming raids scheduled.";
+    }
+
+    StringBuilder result = new StringBuilder();
+    for (RaidCalendarEntry entry : entries) {
+      EventTemplate template = templatePort.findByServerIdAndKey(serverId, entry.getTemplateKey())
+          .orElseThrow(() -> new IllegalArgumentException("Template " + entry.getTemplateKey() + " not found"));
+      if (!result.isEmpty()) {
+        result.append("\n\n");
+      }
+      result.append(DATE_FORMAT.format(entry.getStart())).append('\n')
+          .append("Guild: ").append(entry.getGuildName()).append('\n')
+          .append("Host: <@").append(entry.getHosterUserId()).append(">\n")
+          .append("Event: ").append(formatEmoji(template.getEmojiSlug())).append(' ')
+          .append(template.getName()).append(" (").append(entry.getDuration()).append(')');
+    }
+    return result.toString();
+  }
+
+  public Server requireCalendarConfigured(String serverId) {
+    Server server = serverService.findServerById(serverId);
+    requireCalendarConfigured(server);
+    return server;
+  }
+
+  private void requireCalendarConfigured(Server server) {
+    if (server.getRaidCalendarChannelId() == null || server.getRaidCalendarChannelId().isBlank()) {
+      throw new IllegalStateException("Raid calendar channel has not been configured");
+    }
+    if (server.getRaidCalendarOwnerId() == null || server.getRaidCalendarOwnerId().isBlank()) {
+      throw new IllegalStateException("Raid calendar owner has not been configured");
+    }
+  }
+
+  private void validateTimes(Instant start, Instant end) {
+    if (start == null || end == null || !end.isAfter(start)) {
+      throw new IllegalArgumentException("Calendar event end must be after its start");
+    }
+  }
+
+  private String formatEmoji(String emojiSlug) {
+    if (emojiSlug == null || emojiSlug.isBlank()) {
+      return "";
+    }
+    if (emojiSlug.startsWith(":") && emojiSlug.endsWith(":")) {
+      return emojiSlug;
+    }
+    return emojiSlug.matches("[A-Za-z0-9_]+") ? ":" + emojiSlug + ":" : emojiSlug;
+  }
+}

@@ -4,6 +4,7 @@ import de.qf0xb.raidsignupbot.application.dto.CreateEventCommand;
 import de.qf0xb.raidsignupbot.application.port.guild.GuildApplicationPort;
 import de.qf0xb.raidsignupbot.application.port.template.EventTemplateApplicationPort;
 import de.qf0xb.raidsignupbot.application.service.event.EventService;
+import de.qf0xb.raidsignupbot.application.service.calendar.RaidCalendarService;
 import de.qf0xb.raidsignupbot.application.service.server.ServerService;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.guild.Guild;
@@ -47,6 +48,7 @@ public class EventCreationStepModalWizard extends StepModalWizard {
   private static final String START_FIELD = "start-timestamp";
   private static final String DURATION_FIELD = "duration";
   private static final String TEAMS_APPROVAL_FIELD = "teams-approval";
+  private static final String CALENDAR_ENTRY_FIELD = "calendar-entry-id";
 
   // Donation
   private static final String DONATION_AMOUNT_FIELD = "donation-amount";
@@ -71,8 +73,11 @@ public class EventCreationStepModalWizard extends StepModalWizard {
   @Inject
   EventService eventService;
 
+  @Inject
+  RaidCalendarService raidCalendarService;
+
   public EventCreationStepModalWizard() {
-    super("createevent", "Create a new event from template", CommandAccessLevel.MANAGE_EVENTS);
+    super("createevent", "Create an event from the raid calendar", CommandAccessLevel.PUBLIC);
     addStep(new DetailsStep());
     addStep(new DonationAndChannelStep());
     addStep(new ApprovalStep());
@@ -97,6 +102,7 @@ public class EventCreationStepModalWizard extends StepModalWizard {
 
     CreateEventCommand.CreateEventCommandBuilder commandBuilder = CreateEventCommand.builder()
         .serverId(serverId)
+        .creatorUserId(session.getUserId())
         .guildName(guild.getName())
         .hosterUserId(session.requireValue(HOSTER_FIELD))
         .templateKey(session.requireValue(TEMPLATE_FIELD))
@@ -106,6 +112,10 @@ public class EventCreationStepModalWizard extends StepModalWizard {
         .donationPerWin(session.requireValue(DONATION_TYPE_FIELD).equals("per-win"))
         .eventAdminUserId(session.requireValue(EVENT_ADMIN_FIELD))
         .teamsRequireApproval(Boolean.parseBoolean(session.requireValue(TEAMS_APPROVAL_FIELD)));
+
+    if (!session.getValues().containsKey(EVENT_ID_FIELD)) {
+      commandBuilder.calendarEntryId(Long.parseLong(session.requireValue(CALENDAR_ENTRY_FIELD)));
+    }
 
     if (requiresCategory(server)) {
       commandBuilder.categoryId(session.requireValue(CATEGORY_FIELD));
@@ -211,6 +221,33 @@ public class EventCreationStepModalWizard extends StepModalWizard {
 
   @Override
   public void execute(SlashCommandInteractionEvent event) {
+    if (event.getGuild() == null) {
+      event.reply("This command can only be used in a guild.")
+          .setEphemeral(true)
+          .queue();
+      return;
+    }
+
+    try {
+      Server server = raidCalendarService.requireCalendarConfigured(event.getGuild().getId());
+      if (!event.getUser().getId().equals(server.getRaidCalendarOwnerId())) {
+        event.reply("Only the configured raid calendar owner can create events.")
+            .setEphemeral(true)
+            .queue();
+        return;
+      }
+      if (raidCalendarService.findUpcomingEntries(event.getGuild().getId()).isEmpty()) {
+        event.reply("There are no available events on the raid calendar.")
+            .setEphemeral(true)
+            .queue();
+        return;
+      }
+    } catch (RuntimeException ex) {
+      event.reply(ex.getMessage() == null ? "The raid calendar is not ready." : ex.getMessage())
+          .setEphemeral(true)
+          .queue();
+      return;
+    }
     super.execute(event);
   }
 
@@ -223,6 +260,25 @@ public class EventCreationStepModalWizard extends StepModalWizard {
 
     @Override
     public Modal buildModal(String modalId, StepModalWizardSession session, ButtonInteractionEvent event) {
+      if (!session.getValues().containsKey(EVENT_ID_FIELD)) {
+        Set<SelectOption> calendarOptions = raidCalendarService.findUpcomingEntries(
+                Objects.requireNonNull(event.getGuild(), "This command is only runnable on a guild.").getId())
+            .stream()
+            .limit(25)
+            .map(entry -> SelectOption.of(
+                entry.getId() + " - " + entry.getGuildName() + " / " + entry.getTemplateKey(),
+                String.valueOf(entry.getId())))
+            .collect(Collectors.toSet());
+
+        StringSelectMenu calendarSelect = StringSelectMenu.create(CALENDAR_ENTRY_FIELD)
+            .addOptions(calendarOptions)
+            .setRequired(true)
+            .build();
+        return Modal.create(modalId, "Create Event - Choose Calendar Entry")
+            .addComponents(Label.of("Calendar entry:", calendarSelect))
+            .build();
+      }
+
       Server server = serverService.findServerById(
           Objects.requireNonNull(event.getGuild(), "This command is only runnable on a guild.").getId());
 
@@ -291,6 +347,21 @@ public class EventCreationStepModalWizard extends StepModalWizard {
 
     @Override
     public void submit(ModalInteractionEvent event, StepModalWizardSession session) {
+      if (!session.getValues().containsKey(EVENT_ID_FIELD)) {
+        String entryId = requiredValue(event, CALENDAR_ENTRY_FIELD);
+        var entry = raidCalendarService.findEntry(Long.parseLong(entryId));
+        if (!entry.getServerId().equals(Objects.requireNonNull(event.getGuild()).getId())) {
+          throw new IllegalArgumentException("The selected calendar entry belongs to another server");
+        }
+        session.putValue(CALENDAR_ENTRY_FIELD, entryId);
+        session.putValue(TEMPLATE_FIELD, entry.getTemplateKey());
+        session.putValue(HOSTER_FIELD, entry.getHosterUserId());
+        session.putValue(GUILD_FIELD, entry.getGuildName());
+        session.putValue(START_FIELD, String.valueOf(entry.getStart().getEpochSecond()));
+        session.putValue(DURATION_FIELD, entry.getDuration());
+        return;
+      }
+
       session.putValue(TEMPLATE_FIELD, requiredValue(event, TEMPLATE_FIELD));
       session.putValue(HOSTER_FIELD, requiredValue(event, HOSTER_FIELD));
       session.putValue(GUILD_FIELD, requiredValue(event, GUILD_FIELD));

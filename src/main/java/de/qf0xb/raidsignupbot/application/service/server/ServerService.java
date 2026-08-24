@@ -33,6 +33,11 @@ public class ServerService {
   }
 
   @Transactional
+  public Server save(Server server) {
+    return serverApplicationPort.save(server);
+  }
+
+  @Transactional
   public Server updatePermissions(
       String serverId,
       String guildManagerRoleId,
@@ -71,6 +76,19 @@ public class ServerService {
       server.setRaidVoiceChannelCategory(raidVoiceChannelCategory);
     }
 
+    return serverApplicationPort.save(server);
+  }
+
+  @Transactional
+  public Server updateCalendarSettings(String serverId, String channelId, String ownerId) {
+    Server server = ensureServer(serverId);
+    if (channelId != null && !channelId.equals(server.getRaidCalendarChannelId())) {
+      server.setRaidCalendarChannelId(channelId);
+      server.setRaidCalendarMessageId(null);
+    }
+    if (ownerId != null) {
+      server.setRaidCalendarOwnerId(ownerId);
+    }
     return serverApplicationPort.save(server);
   }
 }

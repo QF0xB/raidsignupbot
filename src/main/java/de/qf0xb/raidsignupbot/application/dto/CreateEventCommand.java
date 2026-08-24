@@ -13,6 +13,8 @@ import java.time.Instant;
 @AllArgsConstructor
 public class CreateEventCommand {
   private String serverId;
+  private Long calendarEntryId;
+  private String creatorUserId;
   private String guildName;
   private String hosterUserId;
   private String eventAdminUserId;

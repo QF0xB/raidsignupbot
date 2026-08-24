@@ -1,0 +1,23 @@
+ALTER TABLE server
+    ADD COLUMN raid_calendar_channel_id VARCHAR(255) NULL,
+    ADD COLUMN raid_calendar_owner_id VARCHAR(255) NULL,
+    ADD COLUMN raid_calendar_message_id VARCHAR(255) NULL;
+
+CREATE TABLE raid_calendar_entry
+(
+    id             BIGINT AUTO_INCREMENT NOT NULL,
+    server_id      VARCHAR(255)          NOT NULL,
+    guild_name     VARCHAR(255)          NOT NULL,
+    hoster_user_id VARCHAR(255)          NOT NULL,
+    template_key   VARCHAR(255)          NOT NULL,
+    start_at       DATETIME              NOT NULL,
+    end_at         DATETIME              NOT NULL,
+    event_id       BIGINT                NULL,
+    CONSTRAINT pk_raid_calendar_entry PRIMARY KEY (id),
+    CONSTRAINT fk_raid_calendar_entry_on_server FOREIGN KEY (server_id) REFERENCES server (server_id),
+    CONSTRAINT fk_raid_calendar_entry_on_event FOREIGN KEY (event_id) REFERENCES event (id),
+    CONSTRAINT uk_raid_calendar_entry_event UNIQUE (event_id)
+);
+
+CREATE INDEX idx_raid_calendar_entry_server_start
+    ON raid_calendar_entry (server_id, start_at);

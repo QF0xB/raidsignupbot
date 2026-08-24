@@ -17,6 +17,9 @@ public class Server {
   private boolean manageSignupChannels = true;
   private boolean manageVoiceChannels = false;
   private String raidVoiceChannelCategory;
+  private String raidCalendarChannelId;
+  private String raidCalendarOwnerId;
+  private String raidCalendarMessageId;
 
   public Server(String serverId) {
     this.serverId = serverId;

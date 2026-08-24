@@ -1,5 +1,11 @@
 # onyxguildbot
 
+## Raid calendar
+
+Guild administrators can configure the calendar with `/calendarconfig`, providing a text channel and the single member who owns event creation. Calendar entries are managed with `/calendaradd` and `/calendarremove`; `/calendar` refreshes the configured channel.
+
+The configured owner creates signup events through `/createevent`. The wizard only offers unused entries from the calendar, and event creation is rejected unless the selected event still matches that entry. This keeps the calendar channel as the source of truth for upcoming events.
+
 This project uses Quarkus, the Supersonic Subatomic Java Framework.
 
 If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.

@@ -8,6 +8,7 @@ import de.qf0xb.raidsignupbot.application.port.template.EventTemplateApplication
 import de.qf0xb.raidsignupbot.application.service.generator.OrToolsTeamGeneratorService;
 import de.qf0xb.raidsignupbot.application.service.guild.GuildMemberService;
 import de.qf0xb.raidsignupbot.application.service.guild.GuildService;
+import de.qf0xb.raidsignupbot.application.service.calendar.RaidCalendarService;
 import de.qf0xb.raidsignupbot.application.service.server.ServerService;
 import de.qf0xb.raidsignupbot.application.service.template.TemplateService;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
@@ -33,6 +34,7 @@ public class EventService {
   private final TemplateService templateService;
   private final OrToolsTeamGeneratorService teamGeneratorService = new OrToolsTeamGeneratorService();
   private final EventUIApplicationPort eventUIApplicationPort;
+  private final RaidCalendarService raidCalendarService;
   private final Map<Long, TeamGeneratorResult> pendingApprovalResults = new ConcurrentHashMap<>();
 
   public EventService(
@@ -41,17 +43,28 @@ public class EventService {
       ServerService serverService,
       GuildMemberService guildMemberService,
       TemplateService templateService,
-      EventUIApplicationPort eventUIApplicationPort) {
+      EventUIApplicationPort eventUIApplicationPort,
+      RaidCalendarService raidCalendarService) {
     this.eventApplicationPort = eventApplicationPort;
     this.guildService = guildService;
     this.serverService = serverService;
     this.guildMemberService = guildMemberService;
     this.templateService = templateService;
     this.eventUIApplicationPort = eventUIApplicationPort;
+    this.raidCalendarService = raidCalendarService;
   }
 
   @Transactional
   public Event createEvent(CreateEventCommand command) {
+    raidCalendarService.validateEventCreation(
+        command.getServerId(),
+        command.getCreatorUserId(),
+        command.getCalendarEntryId(),
+        command.getGuildName(),
+        command.getHosterUserId(),
+        command.getTemplateKey(),
+        command.getStart(),
+        command.getEnd());
     Guild guild = guildService.findGuildByServerIdAndName(command.getServerId(), command.getGuildName());
     boolean manageSignupChannels = serverService.findServerById(guild.getServerId()).isManageSignupChannels();
     boolean manageVoiceChannels = serverService.findServerById(guild.getServerId()).isManageVoiceChannels();
@@ -83,7 +96,9 @@ public class EventService {
     }
 
     eventUIApplicationPort.addEvent(event);
-    return eventApplicationPort.save(event);
+    Event savedEvent = eventApplicationPort.save(event);
+    raidCalendarService.markEventCreated(command.getCalendarEntryId(), savedEvent.getId());
+    return savedEvent;
   }
 
   @Transactional
