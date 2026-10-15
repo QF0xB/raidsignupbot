@@ -72,12 +72,12 @@ public class EventService {
     Guild guild = guildService.findGuildByServerIdAndName(command.getServerId(), command.getGuildName());
     boolean manageSignupChannels = serverService.findServerById(guild.getServerId()).isManageSignupChannels();
     boolean manageVoiceChannels = serverService.findServerById(guild.getServerId()).isManageVoiceChannels();
-    GuildMember hoster = guildMemberService.findGuildMemberById(command.getHosterUserId());
+    GuildMember hoster = ensureMember(command.getHosterUserId(), guild);
     Event event =
         Event.builder()
             .guild(guild)
             .hoster(hoster)
-            .eventAdmin(resolveEventAdmin(command.getEventAdminUserId(), hoster))
+            .eventAdmin(resolveEventAdmin(command.getEventAdminUserId(), hoster, guild))
             .donationPerWin(command.isDonationPerWin())
             .donation(command.getDonation())
             .start(command.getStart())
@@ -111,7 +111,7 @@ public class EventService {
     raidCalendarService.validateEventUpdate(
         command.getServerId(), eventId, command.getGuildName(), command.getStart());
     Guild guild = guildService.findGuildByServerIdAndName(command.getServerId(), command.getGuildName());
-    GuildMember hoster = guildMemberService.findGuildMemberById(command.getHosterUserId());
+    GuildMember hoster = ensureMember(command.getHosterUserId(), guild);
     String categoryId = command.getCategoryId() != null ? command.getCategoryId() : existingEvent.getCategoryId();
     String signUpChannelId = command.getSignUpChannelId() != null ? command.getSignUpChannelId() : existingEvent.getSignUpChannelId();
     String voiceChannelId = command.getVoiceChannelId() != null ? command.getVoiceChannelId() : existingEvent.getVoiceChannelId();
@@ -120,7 +120,7 @@ public class EventService {
             .id(existingEvent.getId())
             .guild(guild)
             .hoster(hoster)
-            .eventAdmin(resolveEventAdmin(command.getEventAdminUserId(), hoster))
+            .eventAdmin(resolveEventAdmin(command.getEventAdminUserId(), hoster, guild))
             .donationPerWin(command.isDonationPerWin())
             .donation(command.getDonation())
             .start(command.getStart())
@@ -333,11 +333,16 @@ public class EventService {
     eventUIApplicationPort.requestBackups(event, eventBackupService.findOffers(event.getId()));
   }
 
-  private GuildMember resolveEventAdmin(String eventAdminUserId, GuildMember hoster) {
+  private GuildMember resolveEventAdmin(String eventAdminUserId, GuildMember hoster, Guild guild) {
     if (eventAdminUserId == null || eventAdminUserId.isBlank()) {
       return hoster;
     }
-    return guildMemberService.findGuildMemberById(eventAdminUserId);
+    return ensureMember(eventAdminUserId, guild);
+  }
+
+  // Hosts and admins are picked freely in Discord, so they may not have been synced as guild members yet.
+  private GuildMember ensureMember(String userId, Guild guild) {
+    return guildMemberService.ensureGuildMember(userId, guild.getServerId(), guild.getName());
   }
 
   public Event findEventById(Long eventId) {
