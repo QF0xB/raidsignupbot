@@ -35,6 +35,7 @@ import net.dv8tion.jda.api.entities.channel.concrete.Category;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 
+import java.time.Instant;
 import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -289,6 +290,19 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
         log.warn("Could not add backup to teams message of event {}", event.getId(), ex);
       }
     }
+  }
+
+  @Override
+  public void announcePostponement(Event event, Instant previousStart) {
+    TextChannel channel = api.getTextChannelById(event.getSignUpChannelId());
+    if (channel == null) {
+      throw new IllegalStateException("The raid signup channel does not exist.");
+    }
+    channel.sendMessage(String.format(
+        "🕒 **%s** has been postponed from <t:%d:F> to **<t:%d:F>** (<t:%d:R>). "
+            + "Signups and teams are preserved.",
+        event.getTemplate().getName(), previousStart.getEpochSecond(),
+        event.getStart().getEpochSecond(), event.getStart().getEpochSecond())).queue();
   }
 
   @Override

@@ -5,6 +5,7 @@ import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.event.EventBackupOffer;
 import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
 
+import java.time.Instant;
 import java.util.List;
 
 public interface EventUIApplicationPort {
@@ -15,6 +16,7 @@ public interface EventUIApplicationPort {
   void publishTeams(Event event, TeamGeneratorResult result);
   void requestBackups(Event event, List<EventBackupOffer> offers);
   void announceBackup(Event event, List<EventBackupOffer> acceptedOffers);
+  void announcePostponement(Event event, Instant previousStart);
   void sendTeamsForApproval(Event event, TeamGeneratorResult result);
   void updateTeams(Event event, TeamGeneratorResult result);
   void deleteEvent(Event event);

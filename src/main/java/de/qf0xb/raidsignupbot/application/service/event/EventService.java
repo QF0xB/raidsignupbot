@@ -20,6 +20,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -150,6 +152,47 @@ public class EventService {
       eventUIApplicationPort.updateTeams(updatedEvent, new TeamGeneratorResult(updatedEvent.getTeams(), List.of()));
     }
     return eventApplicationPort.save(updatedEvent);
+  }
+
+  @Transactional
+  public Event postponeEvent(String serverId, Long eventId, int minutes) {
+    if (minutes <= 0) {
+      throw new IllegalArgumentException("The delay must be at least one minute.");
+    }
+    Event event = findEventById(eventId);
+    if (event.getGuild() == null || !serverId.equals(event.getGuild().getServerId())) {
+      throw new IllegalArgumentException("This raid does not belong to this server.");
+    }
+    Instant now = Instant.now();
+    if (event.getStart() == null || event.getEnd() == null || !event.getStart().isAfter(now)) {
+      throw new IllegalArgumentException("Only raids that have not started can be postponed.");
+    }
+    Instant oldStart = event.getStart();
+    Duration delay = Duration.ofMinutes(minutes);
+    Instant newStart = oldStart.plus(delay);
+    Instant newEnd = event.getEnd().plus(delay);
+    raidCalendarService.rescheduleEvent(serverId, eventId, event.getGuild().getName(), newStart, newEnd);
+    event.setStart(newStart);
+    event.setEnd(newEnd);
+    // Rearm only reminders whose new deadline is still ahead, avoiding immediate duplicate pings.
+    if (newStart.minusSeconds(3600).isAfter(now)) {
+      event.setOneHourBeforeEmitted(false);
+    }
+    if (newStart.minusSeconds(1800).isAfter(now)) {
+      event.setThirtyMinutesBeforeEmitted(false);
+    }
+    if (newStart.minusSeconds(900).isAfter(now)) {
+      event.setFifteenMinutesBeforeEmitted(false);
+    }
+    event.setOneHourAfterEmitted(false);
+    eventUIApplicationPort.updateEvent(event, event);
+    if (event.getTeamsMessageId() != null) {
+      eventUIApplicationPort.updateTeams(event, new TeamGeneratorResult(event.getTeams(), List.of()));
+    }
+    Event savedEvent = eventApplicationPort.save(event);
+    eventBackupService.extendOffers(eventId, newEnd);
+    eventUIApplicationPort.announcePostponement(savedEvent, oldStart);
+    return savedEvent;
   }
 
   @Transactional

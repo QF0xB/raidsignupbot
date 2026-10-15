@@ -116,6 +116,11 @@ public class EventBackupService {
         .toList();
   }
 
+  public synchronized void extendOffers(Long eventId, Instant newEnd) {
+    offers.replaceAll((id, state) -> state.offer().eventId().equals(eventId)
+        ? new OfferState(state.offer(), state.status(), newEnd) : state);
+  }
+
   public synchronized void clearOffers(Long eventId) {
     offers.entrySet().removeIf(entry -> entry.getValue().offer().eventId().equals(eventId));
   }

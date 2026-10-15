@@ -10,6 +10,12 @@ Each guild can have at most one raid on a calendar day. The check includes both 
 
 This project uses Quarkus, the Supersonic Subatomic Java Framework.
 
+## Postponing a raid
+
+Event managers can use `/postponeraid event:<raid> minutes:30` to delay an upcoming raid. Both start and end move by the given number of minutes, preserving the duration, signup reactions, teams, pending approval, and backup responses. The bot updates the signup and published teams messages, moves the linked calendar entry when needed, refreshes the calendar, and posts the new start time in the signup channel. Reminders follow the new schedule without immediately repeating ones already sent. The command rejects raids that have started and moves that would create a second raid for the same guild on the same day.
+
+## Backup signups
+
 Every event signup message includes a 🛟 Backup reaction. Members should select their normal roles plus Backup when applicable; Backup applies a `-100` priority penalty without excluding them from normal role assignment. After teams are published, players without a team receive one private backup request per event listing all their eligible roles. Accepting confirms them for the listed positions that still need a backup; declining applies to the whole request. Only one backup can accept each position. The player receives one combined confirmation, and each organizer receives one combined notification.
 
 If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.

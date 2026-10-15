@@ -177,6 +177,21 @@ public class RaidCalendarService {
     ensureGuildHasNoRaidOnDay(serverId, guildName, start, null, eventId);
   }
 
+  @Transactional
+  public void rescheduleEvent(String serverId, Long eventId, String guildName, Instant start, Instant end) {
+    validateTimes(start, end);
+    validateEventUpdate(serverId, eventId, guildName, start);
+    Instant calendarStart = start.atZone(ZoneId.systemDefault()).toLocalDate()
+        .atStartOfDay(ZoneId.systemDefault()).toInstant();
+    calendarPort.findByServerId(serverId).stream()
+        .filter(entry -> Objects.equals(entry.getEventId(), eventId))
+        .forEach(entry -> calendarPort.save(RaidCalendarEntry.builder()
+            .id(entry.getId()).serverId(entry.getServerId()).guildName(entry.getGuildName())
+            .hosterUserId(entry.getHosterUserId()).templateKey(entry.getTemplateKey())
+            .eventId(eventId).start(calendarStart)
+            .end(calendarStart.plus(java.time.Duration.between(start, end))).build()));
+  }
+
   public String render(String serverId) {
     List<RaidCalendarEntry> entries = findUpcomingEntries(serverId);
     if (entries.isEmpty()) {
