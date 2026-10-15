@@ -221,7 +221,7 @@ public class RaidCalendarService {
 
     boolean calendarConflict = calendarPort.findByServerId(serverId).stream()
         .filter(entry -> !Objects.equals(entry.getId(), ignoredCalendarEntryId))
-        .filter(entry -> !Objects.equals(entry.getEventId(), ignoredEventId))
+        .filter(entry -> ignoredEventId == null || !Objects.equals(entry.getEventId(), ignoredEventId))
         .anyMatch(entry -> sameGuildAndDay(
             serverId, guildName, raidDay, entry.getServerId(), entry.getGuildName(), entry.getStart()));
     if (calendarConflict) {
