@@ -19,6 +19,7 @@ import de.qf0xb.raidsignupbot.domain.model.guild.Guild;
 import de.qf0xb.raidsignupbot.domain.model.guild.GuildMember;
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.DiscordBot;
 import jakarta.annotation.Priority;
+import io.quarkus.arc.profile.IfBuildProfile;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
@@ -35,6 +36,7 @@ import java.util.Set;
 
 @Slf4j
 @ApplicationScoped
+@IfBuildProfile("dev")
 public class AppSetup {
   private static final Logger LOG = Logger.getLogger(AppSetup.class);
 

@@ -1,6 +1,5 @@
 package de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.command.event;
 
-import de.qf0xb.raidsignupbot.AppSetup;
 import de.qf0xb.raidsignupbot.application.port.EventApplicationPort;
 import de.qf0xb.raidsignupbot.application.service.event.EventService;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
@@ -32,9 +31,6 @@ public class CloseSignupCommand extends EventRaidCommand {
   @Inject
   EventApplicationPort eventApplicationPort;
 
-  @Inject
-  AppSetup appSetup;
-
   public CloseSignupCommand() {
     super("closesignup", "Closes the signup for an event in a specific channel.", CommandAccessLevel.MANAGE_EVENTS);
     addOption(new OptionData(
@@ -62,8 +58,7 @@ public class CloseSignupCommand extends EventRaidCommand {
     String channelName = Objects.requireNonNull(event.getOption(OPTION_NAME),
         "Missing required option: " + OPTION_NAME).getAsString();
     Event raidEvent = getEventByChannelName(channelName);
-    eventService.generateTeamsAndCloseSignup(raidEvent.getId(),
-        /* for testing! use null after*/ appSetup.getSignups());
+    eventService.generateTeamsAndCloseSignup(raidEvent.getId(), null);
 
     event.getHook().sendMessage("Signup for event " + channelName + " closed.").queue();
   }
