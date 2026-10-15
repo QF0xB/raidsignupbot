@@ -11,6 +11,7 @@ import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.JDA;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @Slf4j
 @ApplicationScoped
@@ -33,7 +34,14 @@ public class DiscordBot {
   @Inject
   GuildMemberSyncService guildMemberSyncService;
 
+  @ConfigProperty(name = "discord.bot.enabled", defaultValue = "true")
+  boolean enabled;
+
   void onStart(@Observes StartupEvent ev) {
+    if (!enabled) {
+      log.info("Discord bot disabled; skipping bootstrap");
+      return;
+    }
     log.info("Starting Discord bot bootstrap");
     discordApi.addEventListener(commandManager, componentManager, raidGuildJoinListener, guildRoleSyncListener);
     commandManager.registerCommands();
