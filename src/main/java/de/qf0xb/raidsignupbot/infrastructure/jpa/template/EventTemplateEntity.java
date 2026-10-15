@@ -34,5 +34,6 @@ public class EventTemplateEntity implements Serializable {
   private String emojiSlug;
 
   @OneToMany(mappedBy = "eventTemplateEntity", cascade = CascadeType.ALL, orphanRemoval = true)
+  @OrderBy("id")
   private Set<EventStrategyEntity> eventStrategies = new LinkedHashSet<>();
 }

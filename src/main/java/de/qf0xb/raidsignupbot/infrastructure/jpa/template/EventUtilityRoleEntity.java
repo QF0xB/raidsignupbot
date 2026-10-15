@@ -19,5 +19,6 @@ public class EventUtilityRoleEntity extends EventRoleEntity {
   @ElementCollection
   @Column(name = "eligible_primary_role_key")
   @CollectionTable(name = "event_role_eligiblePrimaryRoleKeys", joinColumns = @JoinColumn(name = "owner_id"))
+  @OrderBy
   private Set<String> eligiblePrimaryRoleKeys = new LinkedHashSet<>();
 }

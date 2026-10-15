@@ -4,13 +4,13 @@ import lombok.AccessLevel;
 import lombok.Getter;
 
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 @Getter
 public class EventUtilityRole extends EventRole {
   @Getter(AccessLevel.NONE)
-  private final Set<String> eligiblePrimaryRoleKeys = new HashSet<>();
+  private final Set<String> eligiblePrimaryRoleKeys = new LinkedHashSet<>();
 
   public EventUtilityRole(String key, String name, String emojiSlug, int requiredCount) {
     super(key, name, emojiSlug, requiredCount);

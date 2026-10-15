@@ -5,7 +5,9 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 @Getter
@@ -35,9 +37,11 @@ public class EventStrategyEntity implements Serializable {
   @ElementCollection
   @Column(name = "guide")
   @CollectionTable(name = "event_strategy_entity_guides", joinColumns = @JoinColumn(name = "owner_id"))
-  private Set<String> guides = new LinkedHashSet<>();
+  @OrderColumn(name = "guide_order")
+  private List<String> guides = new ArrayList<>();
 
   @OneToMany(mappedBy = "eventStrategyEntity", cascade = CascadeType.ALL, orphanRemoval = true)
+  @OrderBy("id")
   private Set<EventRoleEntity> eventRoleEntities = new LinkedHashSet<>();
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
