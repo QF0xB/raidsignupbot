@@ -39,7 +39,15 @@ public class EventApprovalHandler implements ComponentInteractionHandler {
   @Override
   public void onButtonInteraction(ButtonInteractionEvent event) {
     ParsedApproval parsed = parse(event.getButton().getCustomId());
-    var storedEvent = eventService.findEventById(parsed.eventId());
+    var storedEventOptional = eventService.findEventByIdOptional(parsed.eventId());
+    if (storedEventOptional.isEmpty()) {
+      event.editMessage("This event no longer exists.")
+          .setEmbeds(List.of())
+          .setComponents(List.of())
+          .queue();
+      return;
+    }
+    var storedEvent = storedEventOptional.get();
     if (!storedEvent.isApprovalPending()) {
       event.reply("This approval request is no longer pending.")
           .setEphemeral(true)
@@ -118,7 +126,12 @@ public class EventApprovalHandler implements ComponentInteractionHandler {
   @Override
   public void onModalInteraction(ModalInteractionEvent event) {
     long eventId = parseSwapModalEventId(event.getModalId());
-    var storedEvent = eventService.findEventById(eventId);
+    var storedEventOptional = eventService.findEventByIdOptional(eventId);
+    if (storedEventOptional.isEmpty()) {
+      event.reply("This event no longer exists.").setEphemeral(true).queue();
+      return;
+    }
+    var storedEvent = storedEventOptional.get();
     if (!storedEvent.isApprovalPending()) {
       event.reply("This approval request is no longer pending.")
           .setEphemeral(true)
