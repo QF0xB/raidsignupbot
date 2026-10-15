@@ -1,0 +1,35 @@
+# Production stack: the bot plus its PostgreSQL database.
+# Configure secrets in a .env file next to this file (see .env.example), then run: docker compose up -d
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: raidsignupbot
+      POSTGRES_USER: raidsignupbot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raidsignupbot -d raidsignupbot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  bot:
+    image: ghcr.io/qf0xb/raidsignupbot:${BOT_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://db:5432/raidsignupbot
+      QUARKUS_DATASOURCE_USERNAME: raidsignupbot
+      QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      DISCORD_TOKEN: ${DISCORD_TOKEN:?set DISCORD_TOKEN in .env}
+      DISCORD_APPLICATION_ID: ${DISCORD_APPLICATION_ID:?set DISCORD_APPLICATION_ID in .env}
+      JAVA_OPTS_APPEND: -Xmx384m -Djava.util.logging.manager=org.jboss.logmanager.LogManager
+
+volumes:
+  db-data:
