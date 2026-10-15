@@ -245,6 +245,12 @@ public class MessageFactory {
     return sb.toString();
   }
 
+  public String buildAcceptedBackups(List<EventBackupOffer> acceptedOffers) {
+    return acceptedOffers.stream()
+        .map(offer -> String.format("%s: <@%s>", offer.roleName(), offer.userId()))
+        .collect(Collectors.joining("\n"));
+  }
+
   public String buildTeams(Event event) {
     return buildTeams(event, new TeamGeneratorResult(event.getTeams(), List.of()));
   }

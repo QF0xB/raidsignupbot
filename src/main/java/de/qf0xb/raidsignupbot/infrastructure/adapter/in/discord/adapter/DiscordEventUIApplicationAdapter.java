@@ -4,6 +4,7 @@ import de.qf0xb.raidsignupbot.application.TeamGeneratorResult;
 import de.qf0xb.raidsignupbot.application.port.EventUIApplicationPort;
 import de.qf0xb.raidsignupbot.application.port.EventApplicationPort;
 import de.qf0xb.raidsignupbot.application.service.server.ServerService;
+import de.qf0xb.raidsignupbot.application.service.event.EventBackupService;
 import de.qf0xb.raidsignupbot.application.service.event.EventLifecycleNotification;
 import de.qf0xb.raidsignupbot.application.service.event.EventLifecycleStage;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
@@ -62,6 +63,9 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
 
   @Inject
   EventApplicationPort eventApplicationPort;
+
+  @Inject
+  EventBackupService eventBackupService;
 
   @Override
   public void addEvent(Event event) {
@@ -244,6 +248,42 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
   }
 
   @Override
+  public void announceBackup(Event event, EventBackupOffer acceptedOffer) {
+    String notice = String.format(
+        "%s <@%s> is now the backup for **%s** in **%s** (<t:%d:F>).",
+        EventMemberSignup.BACKUP_EMOJI,
+        acceptedOffer.userId(),
+        acceptedOffer.roleName(),
+        event.getTemplate().getName(),
+        event.getStart().getEpochSecond());
+
+    Set<String> organizerIds = new LinkedHashSet<>();
+    organizerIds.add(event.getHoster().getUserId());
+    if (event.getEventAdmin() != null) {
+      organizerIds.add(event.getEventAdmin().getUserId());
+    }
+    for (String organizerId : organizerIds) {
+      try {
+        api.retrieveUserById(organizerId).complete()
+            .openPrivateChannel().complete()
+            .sendMessage(notice)
+            .queue();
+      } catch (RuntimeException ex) {
+        log.warn("Could not notify organizer {} about backup for event {}", organizerId, event.getId(), ex);
+      }
+    }
+
+    // Show the confirmed backups on the published teams message as well.
+    if (event.getTeamsMessageId() != null) {
+      try {
+        updateTeams(event, new TeamGeneratorResult(event.getTeams(), List.of()));
+      } catch (RuntimeException ex) {
+        log.warn("Could not add backup to teams message of event {}", event.getId(), ex);
+      }
+    }
+  }
+
+  @Override
   public void sendTeamsForApproval(Event event, TeamGeneratorResult result) {
     User eventAdmin = api.retrieveUserById(event.getEventAdmin().getUserId()).complete();
     EmbedBuilder embedBuilder = buildTeamsEmbed(event, result, "Teams awaiting approval by onyxguildbot | made by StormFox");
@@ -302,6 +342,12 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
     embedBuilder.setDescription(messageFactory.buildTeams(event, result));
     embedBuilder.setColor(result.teams().isEmpty() ? 0xFF0000 : 0x00FF00);
     embedBuilder.setFooter(footer);
+    if (event.getId() != null) {
+      String backups = messageFactory.buildAcceptedBackups(eventBackupService.findAcceptedOffers(event.getId()));
+      if (!backups.isEmpty()) {
+        embedBuilder.addField(EventMemberSignup.BACKUP_EMOJI + " Backups", backups, false);
+      }
+    }
     return embedBuilder;
   }
 

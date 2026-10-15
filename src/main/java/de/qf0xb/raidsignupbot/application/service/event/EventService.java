@@ -290,6 +290,15 @@ public class EventService {
   }
 
   @Transactional
+  public String respondToBackupOffer(String offerId, String userId, boolean available) {
+    EventBackupService.BackupResponse response = eventBackupService.respond(offerId, userId, available);
+    if (response.acceptedOffer() != null) {
+      eventUIApplicationPort.announceBackup(findEventById(response.acceptedOffer().eventId()), response.acceptedOffer());
+    }
+    return response.message();
+  }
+
+  @Transactional
   public Event rejectGeneratedTeams(Long eventId) {
     Event event = findEventById(eventId);
     if (!event.isApprovalPending()) {

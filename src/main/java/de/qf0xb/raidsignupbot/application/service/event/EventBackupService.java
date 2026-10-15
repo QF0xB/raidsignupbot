@@ -60,7 +60,7 @@ public class EventBackupService {
         .toList();
   }
 
-  public synchronized String respond(String offerId, String userId, boolean available) {
+  public synchronized BackupResponse respond(String offerId, String userId, boolean available) {
     OfferState state = offers.get(offerId);
     if (state == null || state.expiresAt().isBefore(Instant.now())) {
       throw new IllegalStateException("This backup request has expired");
@@ -69,13 +69,13 @@ public class EventBackupService {
       throw new IllegalArgumentException("This backup request belongs to another user");
     }
     if (state.status() != OfferStatus.PENDING) {
-      return state.status() == OfferStatus.ACCEPTED
+      return BackupResponse.info(state.status() == OfferStatus.ACCEPTED
           ? "You are already confirmed as the backup for **" + state.offer().roleName() + "**."
-          : "This backup request has already been declined.";
+          : "This backup request has already been declined.");
     }
     if (!available) {
       state.setStatus(OfferStatus.DECLINED);
-      return "You declined the backup request for **" + state.offer().roleName() + "**.";
+      return BackupResponse.info("You declined the backup request for **" + state.offer().roleName() + "**.");
     }
 
     boolean positionAlreadyCovered = offers.values().stream()
@@ -85,11 +85,11 @@ public class EventBackupService {
         .anyMatch(offer -> offers.get(offer.offerId()).status() == OfferStatus.ACCEPTED);
     if (positionAlreadyCovered) {
       state.setStatus(OfferStatus.DECLINED);
-      return "Someone else has already accepted the backup position for **" + state.offer().roleName() + "**.";
+      return BackupResponse.info("Someone else has already accepted the backup position for **" + state.offer().roleName() + "**.");
     }
 
     state.setStatus(OfferStatus.ACCEPTED);
-    return "Thanks! You are confirmed as the backup for **" + state.offer().roleName() + "**.";
+    return new BackupResponse("Thanks! You are confirmed as the backup for **" + state.offer().roleName() + "**.", state.offer());
   }
 
   public List<EventBackupOffer> findAcceptedOffers(Long eventId) {
@@ -108,6 +108,13 @@ public class EventBackupService {
   public void cleanupExpiredOffers() {
     Instant now = Instant.now();
     offers.entrySet().removeIf(entry -> entry.getValue().expiresAt().isBefore(now));
+  }
+
+  /** Reply for the responding user; {@code acceptedOffer} is set only when this response newly filled a backup position. */
+  public record BackupResponse(String message, EventBackupOffer acceptedOffer) {
+    static BackupResponse info(String message) {
+      return new BackupResponse(message, null);
+    }
   }
 
   private enum OfferStatus {

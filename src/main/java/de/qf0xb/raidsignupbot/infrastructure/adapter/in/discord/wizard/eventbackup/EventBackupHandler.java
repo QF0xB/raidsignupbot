@@ -1,6 +1,7 @@
 package de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.wizard.eventbackup;
 
 import de.qf0xb.raidsignupbot.application.service.event.EventBackupService;
+import de.qf0xb.raidsignupbot.application.service.event.EventService;
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.wizard.ComponentInteractionHandler;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -20,6 +21,9 @@ public class EventBackupHandler implements ComponentInteractionHandler {
   @Inject
   EventBackupService eventBackupService;
 
+  @Inject
+  EventService eventService;
+
   @Override
   public boolean supportsButtonId(String buttonId) {
     return buttonId.startsWith(PREFIX);
@@ -30,7 +34,7 @@ public class EventBackupHandler implements ComponentInteractionHandler {
     ParsedOffer parsed = parse(event.getButton().getCustomId());
     event.deferEdit().queue();
     try {
-      String response = eventBackupService.respond(
+      String response = eventService.respondToBackupOffer(
           parsed.offerId(),
           event.getUser().getId(),
           parsed.accepted());
