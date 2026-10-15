@@ -16,6 +16,8 @@ import java.util.Set;
 public class EventMemberSignup {
   public static final String BACKUP_ROLE_KEY = "__backup__";
   public static final String BACKUP_EMOJI = "🛟";
+  public static final String DUAL_BOX_ROLE_KEY = "__dual_box__";
+  public static final String DUAL_BOX_EMOJI = "📦";
   public static final long BACKUP_PRIORITY_PENALTY = 100L;
 
   private final GuildMember guildMember;
@@ -49,6 +51,14 @@ public class EventMemberSignup {
 
   public long getEffectivePriority() {
     return guildMember.getPriority() - (wantsBackup() ? BACKUP_PRIORITY_PENALTY : 0L);
+  }
+
+  public boolean wantsDualBox() {
+    return wantsRole(DUAL_BOX_ROLE_KEY);
+  }
+
+  public int getMaxAssignments() {
+    return wantsDualBox() ? 2 : 1;
   }
 
   public Set<String> getRoleKeys() {

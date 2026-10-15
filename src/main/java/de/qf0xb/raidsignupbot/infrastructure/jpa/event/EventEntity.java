@@ -95,5 +95,6 @@ public class EventEntity implements Serializable {
   private EventTemplateEntity eventTemplate;
 
   @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+  @OrderBy("id ASC")
   private Set<EventTeamEntity> eventTeams = new LinkedHashSet<>();
 }

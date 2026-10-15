@@ -57,6 +57,13 @@ public class Collector {
         EventMemberSignup.BACKUP_EMOJI,
         EventMemberSignup.BACKUP_ROLE_KEY);
 
+    collectRoleReactions(
+        event,
+        signUp,
+        signupsByUserId,
+        EventMemberSignup.DUAL_BOX_EMOJI,
+        EventMemberSignup.DUAL_BOX_ROLE_KEY);
+
     return new ArrayList<>(signupsByUserId.values());
   }
 

@@ -163,6 +163,7 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
     }
 
     message.addReaction(emojiResolver.resolve(EventMemberSignup.BACKUP_EMOJI)).queue();
+    message.addReaction(emojiResolver.resolve(EventMemberSignup.DUAL_BOX_EMOJI)).queue();
 
   }
 
@@ -176,7 +177,10 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
     textChannel.retrieveMessageById(event.getMessageId())
         .queue(message -> message.editMessage(ping)
             .setEmbeds(messageFactory.buildSignupEmbed(event).build())
-            .queue(ignored -> message.addReaction(emojiResolver.resolve(EventMemberSignup.BACKUP_EMOJI)).queue()));
+            .queue(ignored -> {
+              message.addReaction(emojiResolver.resolve(EventMemberSignup.BACKUP_EMOJI)).queue();
+              message.addReaction(emojiResolver.resolve(EventMemberSignup.DUAL_BOX_EMOJI)).queue();
+            }));
   }
 
   @Override
@@ -205,6 +209,7 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
     }
 
     removeReactionIfPresent(signUpMessage, EventMemberSignup.BACKUP_EMOJI, user);
+    removeReactionIfPresent(signUpMessage, EventMemberSignup.DUAL_BOX_EMOJI, user);
 
   }
 

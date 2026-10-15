@@ -14,6 +14,31 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EventTeamTest {
   @Test
+  void rejectsASlotSwapThatWouldDuplicateAUtilityRoleWithoutMutatingTheTeam() {
+    EventStrategy strategy = new EventStrategy("main", "Main");
+    strategy.addRole(new EventRole("fire", "Fire", "🔥", 2));
+    strategy.addRole(new EventRole("support", "Support", "☀️", 1));
+    EventUtilityRole hex = new EventUtilityRole("hex", "Hex", "☀️", 2);
+    hex.addEligiblePrimaryRole("fire");
+    strategy.addRole(hex);
+    EventTeam team = new EventTeam(strategy);
+    GuildMember dual = new GuildMember("dual");
+    GuildMember single = new GuildMember("single");
+    team.assign("fire", dual);
+    team.assign("fire", single);
+    team.assign("support", dual);
+    team.assignUtility("hex", dual);
+    team.assignUtility("hex", single);
+
+    assertThrows(IllegalArgumentException.class,
+        () -> team.swapSlots(team.getSlots().get(2), team, team.getSlots().get(1)));
+    assertSame(dual, team.getSlots().get(2).getMember());
+    assertSame(single, team.getSlots().get(1).getMember());
+    assertSame(dual, team.getUtilityAssignments().get(0).getMember());
+    assertSame(single, team.getUtilityAssignments().get(1).getMember());
+  }
+
+  @Test
   void createsSlotsFromRequiredCounts() {
     EventStrategy strategy = new EventStrategy("strat", "Strategy");
     strategy.addRole(new EventRole("tank", "Tank", "tank", 2));

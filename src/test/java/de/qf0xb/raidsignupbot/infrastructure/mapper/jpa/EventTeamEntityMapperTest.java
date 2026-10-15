@@ -56,4 +56,28 @@ class EventTeamEntityMapperTest {
     assertEquals("user-1", roundTrip.getSlots().stream().filter(slot -> slot.isAssigned()).findFirst().orElseThrow().getMember().getUserId());
     assertEquals("user-1", roundTrip.getUtilityAssignments().stream().filter(assignment -> assignment.isAssigned()).findFirst().orElseThrow().getMember().getUserId());
   }
+
+  @Test
+  void preservesTwoAssignmentsForTheSamePlayerOnSaveAndReload() {
+    EventStrategy strategy = new EventStrategy("main", "Main");
+    strategy.addRole(new EventRole("fire", "Fire", "🔥", 2));
+    EventUtilityRole hex = new EventUtilityRole("hex", "Hex", "☀️", 1);
+    hex.addEligiblePrimaryRole("fire");
+    strategy.addRole(hex);
+    EventTeam team = new EventTeam(strategy);
+    GuildMember member = new GuildMember("dual");
+    team.assign("fire", member);
+    team.assign("fire", member);
+    team.assignUtility("hex", member);
+
+    EventTeamEntity entity = eventTeamEntityMapper.toEntity(team);
+    eventTeamEntityMapper.partialUpdate(team, entity);
+    EventTeam reloaded = eventTeamEntityMapper.toDomain(entity);
+
+    assertEquals(3, entity.getAssignments().size());
+    assertEquals(2, reloaded.getSlots().stream()
+        .filter(slot -> slot.isAssigned() && slot.getMember().getUserId().equals("dual")).count());
+    assertEquals("dual", reloaded.getUtilityAssignments().getFirst().getMember().getUserId());
+    assertTrue(reloaded.isFilled());
+  }
 }

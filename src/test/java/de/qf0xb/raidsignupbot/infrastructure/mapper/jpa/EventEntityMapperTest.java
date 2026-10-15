@@ -23,6 +23,7 @@ import org.mockito.Mockito;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -159,5 +160,36 @@ class EventEntityMapperTest {
     assertEquals("storm", roundTripTeam.getStrategy().getKey());
     assertEquals("member-1", roundTripTeam.getSlots().stream().filter(slot -> slot.isAssigned()).findFirst().orElseThrow().getMember().getUserId());
     assertEquals("member-1", roundTripTeam.getUtilityAssignments().stream().filter(assignment -> assignment.isAssigned()).findFirst().orElseThrow().getMember().getUserId());
+  }
+
+  @Test
+  void keepsTeamIdentitiesInOrderWhenSeveralTeamsUseTheSameStrategy() {
+    EventTemplate template = new EventTemplate("template-1", "Template", "", "test");
+    EventStrategy strategy = new EventStrategy("main", "Main");
+    strategy.addRole(new EventRole("fire", "Fire", "🔥", 1));
+    template.addStrategy(strategy);
+    EventTemplateEntity templateEntity = eventTemplateEntityMapper.toEntity(template);
+    Mockito.when(eventTemplateEntityRepository.findByIdOptional("template-1"))
+        .thenReturn(Optional.of(templateEntity));
+    Event event = Event.builder().id(99L).guild(new Guild("Raid Guild", "guild-1"))
+        .hoster(new GuildMember("host")).template(template).build();
+    EventTeam first = new EventTeam(strategy);
+    first.assign("fire", new GuildMember("first"));
+    EventTeam second = new EventTeam(strategy);
+    second.assign("fire", new GuildMember("second"));
+    event.addTeam(first);
+    event.addTeam(second);
+    EventEntity entity = eventEntityMapper.toEntity(event);
+    var teams = entity.getEventTeams().stream().toList();
+    teams.get(0).setId(11L);
+    teams.get(1).setId(12L);
+
+    first.swapSlots(first.getSlots().getFirst(), second, second.getSlots().getFirst());
+    eventEntityMapper.partialUpdate(event, entity);
+
+    assertEquals(List.of(11L, 12L), entity.getEventTeams().stream().map(team -> team.getId()).toList());
+    Event roundTrip = eventEntityMapper.toDomain(entity);
+    assertEquals("second", roundTrip.getTeams().get(0).getSlots().getFirst().getMember().getUserId());
+    assertEquals("first", roundTrip.getTeams().get(1).getSlots().getFirst().getMember().getUserId());
   }
 }

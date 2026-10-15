@@ -21,6 +21,8 @@ import jakarta.inject.Inject;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Set;
 
 @Mapper(
@@ -151,9 +153,10 @@ public abstract class EventEntityMapper implements JpaEntityMapper<EventEntity, 
   }
 
   private void syncTeams(EventEntity target, Event source) {
-    Map<String, EventTeamEntity> existingTeamsByStrategyKey = new LinkedHashMap<>();
+    Map<String, List<EventTeamEntity>> existingTeamsByStrategyKey = new LinkedHashMap<>();
     for (EventTeamEntity teamEntity : target.getEventTeams()) {
-      existingTeamsByStrategyKey.put(teamEntity.getEventStrategy().getKey(), teamEntity);
+      existingTeamsByStrategyKey.computeIfAbsent(teamEntity.getEventStrategy().getKey(), ignored -> new ArrayList<>())
+          .add(teamEntity);
     }
 
     Map<String, EventStrategyEntity> templateStrategiesByKey = new LinkedHashMap<>();
@@ -172,11 +175,12 @@ public abstract class EventEntityMapper implements JpaEntityMapper<EventEntity, 
 
   private EventTeamEntity syncTeam(
       EventEntity target,
-      Map<String, EventTeamEntity> existingTeamsByStrategyKey,
+      Map<String, List<EventTeamEntity>> existingTeamsByStrategyKey,
       Map<String, EventStrategyEntity> templateStrategiesByKey,
       EventTeam team) {
     String strategyKey = team.getStrategy().getKey();
-    EventTeamEntity existing = existingTeamsByStrategyKey.remove(strategyKey);
+    List<EventTeamEntity> existingTeams = existingTeamsByStrategyKey.get(strategyKey);
+    EventTeamEntity existing = existingTeams == null || existingTeams.isEmpty() ? null : existingTeams.removeFirst();
     EventTeamEntity updated;
 
     if (existing != null) {

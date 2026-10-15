@@ -13,9 +13,9 @@ import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
@@ -26,6 +26,7 @@ public class GreedyTeamGeneratorService implements TeamGeneratorService {
   public TeamGeneratorResult generateTeams(Event event, List<EventMemberSignup> signups) {
     List<EventMemberSignup> remainingSignups = new ArrayList<>(signups);
     List<EventTeam> teams = new ArrayList<>();
+    Map<EventMemberSignup, Integer> assignmentCounts = new HashMap<>();
 
     log.infof(
         "Greedy team generation started: signups=%d, strategies=%d",
@@ -44,8 +45,8 @@ public class GreedyTeamGeneratorService implements TeamGeneratorService {
     while (true) {
       TeamCandidate bestCandidate = null;
       for (EventStrategy strategy : event.getTemplate().getStrategies()) {
-        TeamCandidate candidate = buildGreedyCandidate(strategy, remainingSignups);
-        if (candidate != null && isBetter(candidate, bestCandidate)) {
+        TeamCandidate candidate = buildGreedyCandidate(strategy, remainingSignups, assignmentCounts);
+        if (candidate != null && isBetter(candidate, bestCandidate, assignmentCounts)) {
           bestCandidate = candidate;
         }
       }
@@ -56,22 +57,29 @@ public class GreedyTeamGeneratorService implements TeamGeneratorService {
 
       teams.add(bestCandidate.team());
       hosterMatched |= bestCandidate.includesHoster(event.getHoster());
-      remainingSignups.removeAll(bestCandidate.usedSignups());
+      bestCandidate.usedSignups().forEach(signup -> assignmentCounts.merge(signup, 1, Integer::sum));
+      remainingSignups.removeIf(signup -> assignmentCounts.getOrDefault(signup, 0) >= signup.getMaxAssignments());
     }
 
     if (hosterSignedUp && !hosterMatched) {
       return new TeamGeneratorResult(List.of(), List.copyOf(signups));
     }
 
+    if (signups.stream().anyMatch(EventMemberSignup::wantsDualBox)) {
+      DualBoxTeamGrouper.group(teams, signups);
+    }
+    List<EventMemberSignup> unmatched = signups.stream()
+        .filter(signup -> assignmentCounts.getOrDefault(signup, 0) == 0).toList();
     log.infof(
         "Greedy team generation finished: teams=%d, unmatched=%d",
         teams.size(),
-        remainingSignups.size()
+        unmatched.size()
     );
-    return new TeamGeneratorResult(List.copyOf(teams), List.copyOf(remainingSignups));
+    return new TeamGeneratorResult(List.copyOf(teams), unmatched);
   }
 
-  private TeamCandidate buildGreedyCandidate(EventStrategy strategy, List<EventMemberSignup> remainingSignups) {
+  private TeamCandidate buildGreedyCandidate(EventStrategy strategy, List<EventMemberSignup> remainingSignups,
+      Map<EventMemberSignup, Integer> assignmentCounts) {
     List<TeamCandidate> candidates = new ArrayList<>();
     assignSlots(
         strategy,
@@ -79,11 +87,11 @@ public class GreedyTeamGeneratorService implements TeamGeneratorService {
         remainingSignups,
         0,
         new ArrayList<>(),
-        new HashSet<>(),
+        new HashMap<>(assignmentCounts),
         candidates
     );
     return candidates.stream()
-        .min(teamCandidateComparator())
+        .min(teamCandidateComparator(assignmentCounts))
         .orElse(null);
   }
 
@@ -93,11 +101,12 @@ public class GreedyTeamGeneratorService implements TeamGeneratorService {
       List<EventMemberSignup> remainingSignups,
       int slotIndex,
       List<RoleAssignment> assignments,
-      Set<EventMemberSignup> usedSignups,
+      Map<EventMemberSignup, Integer> assignmentCounts,
       List<TeamCandidate> candidates
   ) {
     int remainingSlots = slots.size() - slotIndex;
-    int availableSignups = remainingSignups.size() - usedSignups.size();
+    int availableSignups = remainingSignups.stream()
+        .mapToInt(signup -> signup.getMaxAssignments() - assignmentCounts.getOrDefault(signup, 0)).sum();
     if (availableSignups < remainingSlots) {
       return;
     }
@@ -108,16 +117,16 @@ public class GreedyTeamGeneratorService implements TeamGeneratorService {
     }
 
     EventSlot slot = slots.get(slotIndex);
-    List<RoleAssignment> eligibleAssignments = eligibleAssignmentsFor(slot, remainingSignups, usedSignups);
+    List<RoleAssignment> eligibleAssignments = eligibleAssignmentsFor(slot, remainingSignups, assignmentCounts);
     if (eligibleAssignments.isEmpty()) {
       return;
     }
 
     for (RoleAssignment assignment : eligibleAssignments) {
       assignments.add(assignment);
-      usedSignups.add(assignment.signup());
-      assignSlots(strategy, slots, remainingSignups, slotIndex + 1, assignments, usedSignups, candidates);
-      usedSignups.remove(assignment.signup());
+      assignmentCounts.merge(assignment.signup(), 1, Integer::sum);
+      assignSlots(strategy, slots, remainingSignups, slotIndex + 1, assignments, assignmentCounts, candidates);
+      assignmentCounts.merge(assignment.signup(), -1, Integer::sum);
       assignments.remove(assignments.size() - 1);
     }
   }
@@ -125,10 +134,10 @@ public class GreedyTeamGeneratorService implements TeamGeneratorService {
   private List<RoleAssignment> eligibleAssignmentsFor(
       EventSlot slot,
       List<EventMemberSignup> remainingSignups,
-      Set<EventMemberSignup> usedSignups
+      Map<EventMemberSignup, Integer> assignmentCounts
   ) {
     return remainingSignups.stream()
-        .filter(signup -> !usedSignups.contains(signup))
+        .filter(signup -> assignmentCounts.getOrDefault(signup, 0) < signup.getMaxAssignments())
         .flatMap(signup -> signup.getRoleKeys().stream()
             .filter(slot::matches)
             .map(roleKey -> new SignupChoice(roleKey, signup)))
@@ -159,7 +168,7 @@ public class GreedyTeamGeneratorService implements TeamGeneratorService {
     List<EventUtilityRole> utilityRoles = expandUtilityRoles(strategy);
     if (utilityIndex == utilityRoles.size()) {
       EventTeam team = buildTeam(strategy, primaryAssignments, utilityAssignments);
-      candidates.add(new TeamCandidate(team, primaryAssignments.stream().map(RoleAssignment::signup).distinct().toList()));
+      candidates.add(new TeamCandidate(team, primaryAssignments.stream().map(RoleAssignment::signup).toList()));
       return;
     }
 
@@ -213,23 +222,22 @@ public class GreedyTeamGeneratorService implements TeamGeneratorService {
     return team;
   }
 
-  private boolean isBetter(TeamCandidate candidate, TeamCandidate currentBest) {
-    if (currentBest == null) {
-      return true;
-    }
-    if (candidate.assignedMembers() != currentBest.assignedMembers()) {
-      return candidate.assignedMembers() > currentBest.assignedMembers();
-    }
-    if (candidate.priorityScore() != currentBest.priorityScore()) {
-      return candidate.priorityScore() > currentBest.priorityScore();
-    }
-    return candidate.flexibilityScore() < currentBest.flexibilityScore();
+  private boolean isBetter(TeamCandidate candidate, TeamCandidate currentBest,
+      Map<EventMemberSignup, Integer> assignmentCounts) {
+    return currentBest == null || teamCandidateComparator(assignmentCounts).compare(candidate, currentBest) < 0;
   }
 
-  private Comparator<TeamCandidate> teamCandidateComparator() {
+  private Comparator<TeamCandidate> teamCandidateComparator(Map<EventMemberSignup, Integer> assignmentCounts) {
     return (left, right) -> {
       if (left.assignedMembers() != right.assignedMembers()) {
         return Integer.compare(right.assignedMembers(), left.assignedMembers());
+      }
+      long leftNewPlayers = left.usedSignups().stream().distinct()
+          .filter(signup -> assignmentCounts.getOrDefault(signup, 0) == 0).count();
+      long rightNewPlayers = right.usedSignups().stream().distinct()
+          .filter(signup -> assignmentCounts.getOrDefault(signup, 0) == 0).count();
+      if (leftNewPlayers != rightNewPlayers) {
+        return Long.compare(rightNewPlayers, leftNewPlayers);
       }
       if (left.priorityScore() != right.priorityScore()) {
         return Integer.compare(right.priorityScore(), left.priorityScore());
@@ -262,6 +270,7 @@ public class GreedyTeamGeneratorService implements TeamGeneratorService {
 
     private int priorityScore() {
       return usedSignups.stream()
+          .distinct()
           .mapToLong(EventMemberSignup::getEffectivePriority)
           .mapToInt(priority -> Math.toIntExact(priority))
           .sum();

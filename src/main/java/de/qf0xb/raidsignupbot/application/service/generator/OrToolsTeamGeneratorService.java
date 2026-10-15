@@ -60,6 +60,7 @@ public class OrToolsTeamGeneratorService implements TeamGeneratorService {
     Map<String, BoolVar> x = new LinkedHashMap<>();
     Map<String, BoolVar> z = new LinkedHashMap<>();
     Map<String, List<BoolVar>> primaryVarsByMember = new HashMap<>();
+    Map<String, BoolVar> selectedByMember = new LinkedHashMap<>();
 
     Map<String, List<PrimarySlotSpec>> primarySlotsByStrategy = new LinkedHashMap<>();
     Map<String, List<UtilitySlotSpec>> utilitySlotsByStrategy = new LinkedHashMap<>();
@@ -74,7 +75,7 @@ public class OrToolsTeamGeneratorService implements TeamGeneratorService {
       primarySlotsByStrategy.put(strategy.getKey(), primarySlots);
       utilitySlotsByStrategy.put(strategy.getKey(), utilitySlots);
 
-      int maxTeams = members.size() / primarySlots.size();
+      int maxTeams = assignmentCapacity(members) / primarySlots.size();
       for (int t = 0; t < maxTeams; t++) {
         y.put(key(strategy.getKey(), t), model.newBoolVar("y_" + strategy.getKey() + "_" + t));
       }
@@ -93,7 +94,7 @@ public class OrToolsTeamGeneratorService implements TeamGeneratorService {
           continue;
         }
 
-        int maxTeams = members.size() / primarySlots.size();
+        int maxTeams = assignmentCapacity(members) / primarySlots.size();
         for (int t = 0; t < maxTeams; t++) {
           for (PrimarySlotSpec primarySlot : primarySlots) {
             if (!signup.wantsRole(primarySlot.roleKey())) {
@@ -115,7 +116,7 @@ public class OrToolsTeamGeneratorService implements TeamGeneratorService {
         continue;
       }
 
-      int maxTeams = members.size() / primarySlots.size();
+      int maxTeams = assignmentCapacity(members) / primarySlots.size();
       for (int t = 0; t < maxTeams; t++) {
         BoolVar teamActive = y.get(key(strategy.getKey(), t));
         for (PrimarySlotSpec primarySlot : primarySlots) {
@@ -139,7 +140,11 @@ public class OrToolsTeamGeneratorService implements TeamGeneratorService {
           .map(var -> (Literal) var)
           .toList();
       if (!vars.isEmpty()) {
-        model.addLessOrEqual(LinearExpr.sum(vars.toArray(new Literal[0])), 1);
+        BoolVar selected = model.newBoolVar("selected_" + memberId);
+        selectedByMember.put(memberId, selected);
+        LinearExpr assignments = LinearExpr.sum(vars.toArray(new Literal[0]));
+        model.addGreaterOrEqual(assignments, selected);
+        model.addLessOrEqual(assignments, LinearExpr.term(selected, signup.getMaxAssignments()));
       }
     }
 
@@ -150,7 +155,7 @@ public class OrToolsTeamGeneratorService implements TeamGeneratorService {
         continue;
       }
 
-      int maxTeams = members.size() / primarySlots.size();
+      int maxTeams = assignmentCapacity(members) / primarySlots.size();
       for (int t = 0; t < maxTeams; t++) {
         BoolVar teamActive = y.get(key(strategy.getKey(), t));
 
@@ -215,7 +220,7 @@ public class OrToolsTeamGeneratorService implements TeamGeneratorService {
       if (primarySlots == null) {
         continue;
       }
-      int maxTeams = members.size() / primarySlots.size();
+      int maxTeams = assignmentCapacity(members) / primarySlots.size();
       for (int t = 0; t + 1 < maxTeams; t++) {
         model.addGreaterOrEqual(y.get(key(strategy.getKey(), t)), y.get(key(strategy.getKey(), t + 1)));
       }
@@ -237,20 +242,27 @@ public class OrToolsTeamGeneratorService implements TeamGeneratorService {
     long bestTeamCount = Math.round(solver.objectiveValue());
     model.addEquality(LinearExpr.sum(teamVars.toArray(new Literal[0])), bestTeamCount);
 
-    List<Literal> hosterVars = primaryVarsByMember.getOrDefault(event.getHoster() == null ? null : event.getHoster().getUserId(), List.of())
-        .stream()
-        .map(var -> (Literal) var)
-        .toList();
-    long hosterSelected = 0;
-    if (hosterSignedUp && !hosterVars.isEmpty()) {
-      model.maximize(LinearExpr.sum(hosterVars.toArray(new Literal[0])));
+    BoolVar hosterVar = selectedByMember.get(event.getHoster() == null ? null : event.getHoster().getUserId());
+    if (hosterSignedUp && hosterVar != null) {
+      model.maximize(hosterVar);
       status = solver.solve(model);
       if (!isSolvable(status)) {
         log.warnf("OR-Tools phase 2 failed with status=%s, falling back to greedy", status);
         return greedyFallback.generateTeams(event, members);
       }
-      hosterSelected = Math.round(solver.objectiveValue());
-      model.addEquality(LinearExpr.sum(hosterVars.toArray(new Literal[0])), hosterSelected);
+      model.addEquality(hosterVar, Math.round(solver.objectiveValue()));
+    }
+
+    if (members.stream().anyMatch(EventMemberSignup::wantsDualBox)) {
+      // Prefer giving another player a place before using a dual-box player's second slot.
+      Literal[] selectedVars = selectedByMember.values().toArray(new Literal[0]);
+      model.maximize(LinearExpr.sum(selectedVars));
+      status = solver.solve(model);
+      if (!isSolvable(status)) {
+        log.warnf("OR-Tools player coverage phase failed with status=%s, falling back to greedy", status);
+        return greedyFallback.generateTeams(event, members);
+      }
+      model.addEquality(LinearExpr.sum(selectedVars), Math.round(solver.objectiveValue()));
     }
 
     List<Literal> fairnessVars = new ArrayList<>();
@@ -262,21 +274,62 @@ public class OrToolsTeamGeneratorService implements TeamGeneratorService {
         continue;
       }
 
-      List<BoolVar> vars = primaryVarsByMember.getOrDefault(memberId, List.of());
-      for (BoolVar var : vars) {
-        fairnessVars.add(var);
+      BoolVar selected = selectedByMember.get(memberId);
+      if (selected != null) {
+        fairnessVars.add(selected);
         fairnessWeights.add(priority);
       }
     }
 
     if (!fairnessVars.isEmpty()) {
-      model.maximize(LinearExpr.weightedSum(
+      LinearExpr fairnessScore = LinearExpr.weightedSum(
           fairnessVars.toArray(new com.google.ortools.sat.LinearArgument[0]),
           fairnessWeights.stream().mapToLong(Long::longValue).toArray()
-      ));
+      );
+      model.maximize(fairnessScore);
       status = solver.solve(model);
       if (!isSolvable(status)) {
         log.warnf("OR-Tools phase 3 failed with status=%s, falling back to greedy", status);
+        return greedyFallback.generateTeams(event, members);
+      }
+      model.addEquality(fairnessScore, Math.round(solver.objectiveValue()));
+    }
+
+    List<Literal> pairedBoxes = new ArrayList<>();
+    for (EventMemberSignup signup : members) {
+      if (!signup.wantsDualBox()) {
+        continue;
+      }
+      for (EventStrategy strategy : strategies) {
+        List<PrimarySlotSpec> primarySlots = primarySlotsByStrategy.get(strategy.getKey());
+        if (primarySlots == null) {
+          continue;
+        }
+        int maxTeams = assignmentCapacity(members) / primarySlots.size();
+        for (int t = 0; t < maxTeams; t++) {
+          List<Literal> teamAssignments = new ArrayList<>();
+          for (PrimarySlotSpec primary : primarySlots) {
+            BoolVar assignment = x.get(key(signup.getGuildMember().getUserId(), strategy.getKey(), t, primary.variableKey()));
+            if (assignment != null) {
+              teamAssignments.add(assignment);
+            }
+          }
+          if (teamAssignments.size() < 2) {
+            continue;
+          }
+          BoolVar paired = model.newBoolVar("paired_" + signup.getGuildMember().getUserId() + "_" + strategy.getKey() + "_" + t);
+          LinearExpr count = LinearExpr.sum(teamAssignments.toArray(new Literal[0]));
+          model.addEquality(count, 2).onlyEnforceIf(paired);
+          model.addLessOrEqual(count, 1).onlyEnforceIf(paired.not());
+          pairedBoxes.add(paired);
+        }
+      }
+    }
+    if (!pairedBoxes.isEmpty()) {
+      model.maximize(LinearExpr.sum(pairedBoxes.toArray(new Literal[0])));
+      status = solver.solve(model);
+      if (!isSolvable(status)) {
+        log.warnf("OR-Tools dual-box grouping phase failed with status=%s, falling back to greedy", status);
         return greedyFallback.generateTeams(event, members);
       }
     }
@@ -317,7 +370,7 @@ public class OrToolsTeamGeneratorService implements TeamGeneratorService {
         continue;
       }
 
-      int maxTeams = members.size() / primarySlots.size();
+      int maxTeams = assignmentCapacity(members) / primarySlots.size();
       for (int t = 0; t < maxTeams; t++) {
         BoolVar teamActive = y.get(key(strategy.getKey(), t));
         if (teamActive == null || solver.booleanValue(teamActive) == false) {
@@ -367,7 +420,7 @@ public class OrToolsTeamGeneratorService implements TeamGeneratorService {
         continue;
       }
 
-      int maxTeams = members.size() / primarySlots.size();
+      int maxTeams = assignmentCapacity(members) / primarySlots.size();
       for (int t = 0; t < maxTeams; t++) {
         for (EventMemberSignup signup : members) {
           String memberId = signup.getGuildMember().getUserId();
@@ -381,6 +434,10 @@ public class OrToolsTeamGeneratorService implements TeamGeneratorService {
       }
     }
     return usedMembers;
+  }
+
+  private int assignmentCapacity(List<EventMemberSignup> members) {
+    return members.stream().mapToInt(EventMemberSignup::getMaxAssignments).sum();
   }
 
   private List<PrimarySlotSpec> expandPrimarySlots(EventStrategy strategy) {

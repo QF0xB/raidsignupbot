@@ -13,6 +13,8 @@ import de.qf0xb.raidsignupbot.application.service.server.ServerService;
 import de.qf0xb.raidsignupbot.application.service.template.TemplateService;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
+import de.qf0xb.raidsignupbot.domain.model.event.EventSlot;
+import de.qf0xb.raidsignupbot.domain.model.event.EventTeam;
 import de.qf0xb.raidsignupbot.domain.model.guild.Guild;
 import de.qf0xb.raidsignupbot.domain.model.guild.GuildMember;
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.adapter.DiscordEventUIApplicationAdapter;
@@ -23,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -197,6 +200,11 @@ public class EventService {
 
   @Transactional
   public Event swapTeamMembers(Long eventId, String leftUserId, String rightUserId) {
+    return swapTeamMembers(eventId, leftUserId, rightUserId, null, null);
+  }
+
+  @Transactional
+  public Event swapTeamMembers(Long eventId, String leftUserId, String rightUserId, String leftSlot, String rightSlot) {
     Event event = findEventById(eventId);
     if (!event.isTeamsGenerated() || event.getTeams().isEmpty()) {
       throw new IllegalStateException("Event teams have not been generated yet");
@@ -204,7 +212,7 @@ public class EventService {
 
     GuildMember leftMember = guildMemberService.findGuildMemberById(leftUserId);
     GuildMember rightMember = guildMemberService.findGuildMemberById(rightUserId);
-    swapMembers(event, leftMember, rightMember);
+    swapMembers(event, leftMember, rightMember, leftSlot, rightSlot);
 
     Event savedEvent = eventApplicationPort.save(event);
     eventUIApplicationPort.updateTeams(savedEvent, new TeamGeneratorResult(savedEvent.getTeams(), List.of()));
@@ -213,6 +221,11 @@ public class EventService {
 
   @Transactional
   public Event swapTeamsForApproval(Long eventId, String leftUserId, String rightUserId) {
+    return swapTeamsForApproval(eventId, leftUserId, rightUserId, null, null);
+  }
+
+  @Transactional
+  public Event swapTeamsForApproval(Long eventId, String leftUserId, String rightUserId, String leftSlot, String rightSlot) {
     Event event = findEventById(eventId);
     if (!event.isApprovalPending() || event.getTeams().isEmpty()) {
       throw new IllegalStateException("Event teams do not have a pending approval proposal");
@@ -229,7 +242,7 @@ public class EventService {
         || !event.getTeams().stream().anyMatch(team -> team.containsMember(rightMember))) {
       throw new IllegalStateException("Approval editing can only swap members already assigned to the proposed teams");
     }
-    swapMembers(event, leftMember, rightMember);
+    swapMembers(event, leftMember, rightMember, leftSlot, rightSlot);
 
     TeamGeneratorResult updatedResult = new TeamGeneratorResult(
         List.copyOf(event.getTeams()), pendingResult.unmatchedSignups());
@@ -239,38 +252,52 @@ public class EventService {
     return savedEvent;
   }
 
-  private void swapMembers(Event event, GuildMember leftMember, GuildMember rightMember) {
+  private void swapMembers(Event event, GuildMember leftMember, GuildMember rightMember, String leftSlotId, String rightSlotId) {
     if (leftMember.getUserId().equals(rightMember.getUserId())) {
       throw new IllegalArgumentException("Cannot swap the same member");
     }
 
-    boolean leftAssigned = event.getTeams().stream().anyMatch(team -> team.containsMember(leftMember));
-    boolean rightAssigned = event.getTeams().stream().anyMatch(team -> team.containsMember(rightMember));
-
-    if (!leftAssigned && !rightAssigned) {
+    MemberSlot left = selectMemberSlot(event, leftMember, leftSlotId);
+    MemberSlot right = selectMemberSlot(event, rightMember, rightSlotId);
+    if (left == null && right == null) {
       throw new IllegalStateException(
           "Neither member is assigned to the generated teams for event " + event.getId());
     }
 
-    int changedAssignments;
-    if (leftAssigned && rightAssigned) {
-      changedAssignments = event.getTeams().stream()
-          .mapToInt(team -> team.swapMembers(leftMember, rightMember))
-          .sum();
-    } else if (leftAssigned) {
-      changedAssignments = event.getTeams().stream()
-          .mapToInt(team -> team.replaceMember(leftMember, rightMember))
-          .sum();
+    if (left != null && right != null) {
+      left.team().swapSlots(left.slot(), right.team(), right.slot());
+    } else if (left != null) {
+      left.team().replaceSlot(left.slot(), rightMember);
     } else {
-      changedAssignments = event.getTeams().stream()
-          .mapToInt(team -> team.replaceMember(rightMember, leftMember))
-          .sum();
-    }
-
-    if (changedAssignments == 0) {
-      throw new IllegalStateException("Swap or substitution did not change any assignments for event " + event.getId());
+      right.team().replaceSlot(right.slot(), leftMember);
     }
   }
+
+  private MemberSlot selectMemberSlot(Event event, GuildMember member, String selectedId) {
+    List<MemberSlot> matches = new ArrayList<>();
+    for (int teamIndex = 0; teamIndex < event.getTeams().size(); teamIndex++) {
+      EventTeam team = event.getTeams().get(teamIndex);
+      for (int slotIndex = 0; slotIndex < team.getSlots().size(); slotIndex++) {
+        EventSlot slot = team.getSlots().get(slotIndex);
+        if (slot.isAssigned() && slot.getMember().getUserId().equals(member.getUserId())) {
+          matches.add(new MemberSlot(team, slot, (teamIndex + 1) + ":" + (slotIndex + 1)));
+        }
+      }
+    }
+    if (selectedId != null && !selectedId.isBlank()) {
+      return matches.stream().filter(match -> match.id().equals(selectedId.trim())).findFirst()
+          .orElseThrow(() -> new IllegalArgumentException("Slot " + selectedId + " is not assigned to the selected player."));
+    }
+    if (matches.size() > 1) {
+      String choices = matches.stream().map(match -> match.id() + " (" + match.slot().getRoleName() + ")")
+          .collect(java.util.stream.Collectors.joining(", "));
+      throw new IllegalArgumentException("Player " + member.getUserId()
+          + " has multiple boxes. Specify their slot from the teams message: " + choices);
+    }
+    return matches.isEmpty() ? null : matches.getFirst();
+  }
+
+  private record MemberSlot(EventTeam team, EventSlot slot, String id) {}
 
   @Transactional
   public Event removeSignupAndRegenerateTeams(Long eventId, String userId) {

@@ -30,5 +30,6 @@ public class EventTeamEntity implements Serializable {
   private EventStrategyEntity eventStrategy;
 
   @OneToMany(mappedBy = "eventTeam", cascade = CascadeType.ALL, orphanRemoval = true)
+  @OrderBy("id ASC")
   private Set<EventTeamAssignmentEntity> assignments = new LinkedHashSet<>();
 }

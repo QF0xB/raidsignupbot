@@ -154,6 +154,9 @@ public class MessageFactory {
             + "Backups get -%d priority and a DM if a spot is still open after teams are made.",
         EventMemberSignup.BACKUP_EMOJI,
         EventMemberSignup.BACKUP_PRIORITY_PENALTY), false);
+    embed.addField(EventMemberSignup.DUAL_BOX_EMOJI + " Dual Box",
+        "React with " + EventMemberSignup.DUAL_BOX_EMOJI + " **in addition** to your roles if you can play two characters. "
+            + "You may be assigned up to **two primary slots** across the raid. Without it, you can only be selected once.", false);
     embed.addField("📋 How to join",
         "React with **every** role you can play. Teams are generated when signup closes, "
             + "and you get the raider role when you are assigned.", false);
@@ -258,14 +261,19 @@ public class MessageFactory {
   public String buildTeam(EventTeam eventTeam, int count) {
     StringBuilder sb = new StringBuilder();
     sb.append(String.format("**Team %s: %s Strategy**", count, eventTeam.getStrategy().getName()));
-    for(EventSlot slot : eventTeam.getSlots()) {
-      sb.append(String.format("\n%s (%s): <@%s>", slot.getEmojiSlug(), slot.getRoleName(), slot.getMember().getUserId()));
+    for (int slotIndex = 0; slotIndex < eventTeam.getSlots().size(); slotIndex++) {
+      EventSlot slot = eventTeam.getSlots().get(slotIndex);
+      sb.append(String.format("\n`%d:%d` %s (%s): <@%s>", count, slotIndex + 1,
+          slot.getEmojiSlug(), slot.getRoleName(), slot.getMember().getUserId()));
     }
 
     for (EventUtilityAssignment utilityAssignment : eventTeam.getUtilityAssignments()) {
       if (utilityAssignment.isAssigned()) {
+        int primaryIndex = java.util.stream.IntStream.range(0, eventTeam.getSlots().size())
+            .filter(index -> eventTeam.utilitiesForSlot(eventTeam.getSlots().get(index)).contains(utilityAssignment))
+            .findFirst().orElseThrow();
         sb.append(String.format(
-            "\n%s (%s): <@%s>",
+            "\n↳ `%d:%d` %s (%s): <@%s>", count, primaryIndex + 1,
             utilityAssignment.getEmojiSlug(),
             utilityAssignment.getRoleName(),
             utilityAssignment.getMember().getUserId()));

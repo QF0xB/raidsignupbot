@@ -14,6 +14,18 @@ This project uses Quarkus, the Supersonic Subatomic Java Framework.
 
 Event managers can use `/postponeraid event:<raid> minutes:30` to delay an upcoming raid. Both start and end move by the given number of minutes, preserving the duration, signup reactions, teams, pending approval, and backup responses. The bot updates the signup and published teams messages, moves the linked calendar entry when needed, refreshes the calendar, and posts the new start time in the signup channel. Reminders follow the new schedule without immediately repeating ones already sent. The command rejects raids that have started and moves that would create a second raid for the same guild on the same day.
 
+## Dual-box signups
+
+React with **📦 Dual Box** in addition to your normal role reactions to volunteer to play two characters. The team generator may assign you to **up to two primary slots across the entire raid**. It prefers keeping both boxes on the same team, but can split them when needed to fill teams or respect role requirements. Only your selected roles are eligible. Without 📦, the limit remains one primary slot. The generator prefers seating another player over using a second slot when the number of teams is unchanged. Dual Box can be combined with 🛟 Backup; the backup priority penalty still applies. Removing 📦 before team generation restores the one-slot limit.
+
+### Switching players and individual boxes
+
+`/swapteam` exchanges **one primary slot per selected player**, rather than replacing every occurrence of either player. Teams messages label each primary slot with `team:slot`, for example `1:2` means team 1, primary slot 2. Utility lines show the slot they belong to. If a player has multiple boxes, specify `left_slot` or `right_slot`; otherwise the bot asks you to choose and leaves the teams unchanged. For single-slot players the slot options can be omitted.
+
+For example, `/swapteam event:<raid> left_member:@Alice right_member:@Bob left_slot:1:2` swaps only Alice's box in slot `1:2` with Bob's single box. Alice's other box stays where it is. The selected positions' utility duties transfer to the incoming player. If one selected player is not assigned, they replace only the specified box.
+
+In the approval message, **Swap members** opens two selectors containing the assigned boxes, including a separate entry for each dual-box slot. Choose one box for each player. If the roster has more than 25 slots, enter the two `team:slot` IDs from the latest proposal instead. The form rejects stale or invalid choices and is restricted to the event admin. After a successful swap, the bot sends a refreshed approval proposal and removes the old message's controls. Approval swaps only exchange assigned players; they do not publish the teams.
+
 ## Backup signups
 
 Every event signup message includes a 🛟 Backup reaction. Members should select their normal roles plus Backup when applicable; Backup applies a `-100` priority penalty without excluding them from normal role assignment. After teams are published, players without a team receive one private backup request per event listing all their eligible roles. Accepting confirms them for the listed positions that still need a backup; declining applies to the whole request. Only one backup can accept each position. The player receives one combined confirmation, and each organizer receives one combined notification.

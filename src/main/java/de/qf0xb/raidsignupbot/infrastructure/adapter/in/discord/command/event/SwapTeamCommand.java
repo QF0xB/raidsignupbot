@@ -34,10 +34,12 @@ public class SwapTeamCommand extends EventRaidCommand {
   JDA api;
 
   public SwapTeamCommand() {
-    super("swapteam", "Swaps two members in the generated event teams.", CommandAccessLevel.MANAGE_EVENTS);
+    super("swapteam", "Swaps one primary slot per player, or substitutes an unassigned player.", CommandAccessLevel.MANAGE_EVENTS);
     addOption(new OptionData(OptionType.STRING, OPTION_EVENT, "The event to update", true, true));
     addOption(new OptionData(OptionType.USER, OPTION_LEFT_MEMBER, "First team member", true));
     addOption(new OptionData(OptionType.USER, OPTION_RIGHT_MEMBER, "Second team member", true));
+    addOption(new OptionData(OptionType.STRING, "left_slot", "First player's slot ID from the teams message, e.g. 1:2", false));
+    addOption(new OptionData(OptionType.STRING, "right_slot", "Second player's slot ID from the teams message, e.g. 2:1", false));
   }
 
   @Override
@@ -63,11 +65,17 @@ public class SwapTeamCommand extends EventRaidCommand {
           "Missing required option: " + OPTION_RIGHT_MEMBER).getAsUser();
 
       Event raidEvent = getEventByChannelName(channelName);
-      eventService.swapTeamMembers(raidEvent.getId(), leftMember.getId(), rightMember.getId());
+      if (event.getGuild() == null || raidEvent.getGuild() == null
+          || !event.getGuild().getId().equals(raidEvent.getGuild().getServerId())) {
+        throw new IllegalArgumentException("Select a raid from this server.");
+      }
+      String leftSlot = event.getOption("left_slot") == null ? null : event.getOption("left_slot").getAsString();
+      String rightSlot = event.getOption("right_slot") == null ? null : event.getOption("right_slot").getAsString();
+      eventService.swapTeamMembers(raidEvent.getId(), leftMember.getId(), rightMember.getId(), leftSlot, rightSlot);
 
       event.getHook()
           .sendMessage(String.format(
-              "Swapped %s and %s in event %s.",
+              "Updated one primary slot each for %s and %s in event %s. Other boxes are unchanged.",
               leftMember.getAsMention(),
               rightMember.getAsMention(),
               channelName))
