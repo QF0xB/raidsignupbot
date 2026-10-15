@@ -58,8 +58,11 @@ public class RaidCalendarService {
         .orElseThrow(() -> new IllegalArgumentException("Template " + templateKey + " not found"));
     validateTimes(start, end);
     java.time.Duration duration = java.time.Duration.between(start, end);
-    Instant calendarStart = start.atZone(ZoneId.systemDefault()).toLocalDate()
-        .atStartOfDay(ZoneId.systemDefault()).toInstant();
+    LocalDate calendarDay = start.atZone(ZoneId.systemDefault()).toLocalDate();
+    if (calendarDay.isBefore(LocalDate.now(ZoneId.systemDefault()))) {
+      throw new IllegalArgumentException("Calendar date " + calendarDay + " is in the past");
+    }
+    Instant calendarStart = calendarDay.atStartOfDay(ZoneId.systemDefault()).toInstant();
     ensureGuildHasNoRaidOnDay(serverId, guildName, calendarStart, null, null);
 
     return calendarPort.save(RaidCalendarEntry.builder()
