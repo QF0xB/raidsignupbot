@@ -14,7 +14,7 @@ public interface EventUIApplicationPort {
   void removeSignup(Event event, String userId);
   void publishTeams(Event event, TeamGeneratorResult result);
   void requestBackups(Event event, List<EventBackupOffer> offers);
-  void announceBackup(Event event, EventBackupOffer acceptedOffer);
+  void announceBackup(Event event, List<EventBackupOffer> acceptedOffers);
   void sendTeamsForApproval(Event event, TeamGeneratorResult result);
   void updateTeams(Event event, TeamGeneratorResult result);
   void deleteEvent(Event event);

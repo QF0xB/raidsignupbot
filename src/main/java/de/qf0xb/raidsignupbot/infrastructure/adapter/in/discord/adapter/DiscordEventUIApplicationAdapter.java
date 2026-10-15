@@ -39,6 +39,7 @@ import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -229,14 +230,19 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
 
   @Override
   public void requestBackups(Event event, List<EventBackupOffer> offers) {
-    for (EventBackupOffer offer : offers) {
+    Map<String, List<EventBackupOffer>> offersByUser = offers.stream()
+        .collect(Collectors.groupingBy(EventBackupOffer::userId));
+    for (List<EventBackupOffer> playerOffers : offersByUser.values()) {
+      EventBackupOffer offer = playerOffers.getFirst();
       try {
         User user = api.retrieveUserById(offer.userId()).complete();
         user.openPrivateChannel().complete()
             .sendMessage(String.format(
-                "You were not assigned to a team for **%s**. Are you available as the backup for **%s**?",
+                "You were not assigned to a team for **%s** (<t:%d:F>). Are you available as a backup?\nEligible roles: **%s**\nAccepting confirms you for the roles that still need a backup.",
                 event.getTemplate().getName(),
-                offer.roleName()))
+                event.getStart().getEpochSecond(),
+                playerOffers.stream().map(EventBackupOffer::roleName).distinct().sorted()
+                    .collect(Collectors.joining(", "))))
             .setComponents(ActionRow.of(
                 Button.success("backup-offer:" + offer.offerId() + ":accept", "Yes, I can backup"),
                 Button.danger("backup-offer:" + offer.offerId() + ":decline", "No, I am unavailable")))
@@ -248,12 +254,14 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
   }
 
   @Override
-  public void announceBackup(Event event, EventBackupOffer acceptedOffer) {
+  public void announceBackup(Event event, List<EventBackupOffer> acceptedOffers) {
+    EventBackupOffer acceptedOffer = acceptedOffers.getFirst();
     String notice = String.format(
         "%s <@%s> is now the backup for **%s** in **%s** (<t:%d:F>).",
         EventMemberSignup.BACKUP_EMOJI,
         acceptedOffer.userId(),
-        acceptedOffer.roleName(),
+        acceptedOffers.stream().map(EventBackupOffer::roleName).distinct().sorted()
+            .collect(Collectors.joining(", ")),
         event.getTemplate().getName(),
         event.getStart().getEpochSecond());
 

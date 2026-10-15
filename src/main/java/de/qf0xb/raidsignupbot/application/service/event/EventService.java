@@ -293,8 +293,8 @@ public class EventService {
   @Transactional
   public String respondToBackupOffer(String offerId, String userId, boolean available) {
     EventBackupService.BackupResponse response = eventBackupService.respond(offerId, userId, available);
-    if (response.acceptedOffer() != null) {
-      eventUIApplicationPort.announceBackup(findEventById(response.acceptedOffer().eventId()), response.acceptedOffer());
+    if (!response.acceptedOffers().isEmpty()) {
+      eventUIApplicationPort.announceBackup(findEventById(response.acceptedOffers().getFirst().eventId()), response.acceptedOffers());
     }
     return response.message();
   }

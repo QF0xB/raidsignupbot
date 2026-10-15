@@ -68,28 +68,44 @@ public class EventBackupService {
     if (!state.offer().userId().equals(userId)) {
       throw new IllegalArgumentException("This backup request belongs to another user");
     }
-    if (state.status() != OfferStatus.PENDING) {
-      return BackupResponse.info(state.status() == OfferStatus.ACCEPTED
-          ? "You are already confirmed as the backup for **" + state.offer().roleName() + "**."
-          : "This backup request has already been declined.");
+    List<OfferState> playerOffers = offers.values().stream()
+        .filter(candidate -> candidate.offer().eventId().equals(state.offer().eventId()))
+        .filter(candidate -> candidate.offer().userId().equals(userId))
+        .sorted(Comparator.comparing(candidate -> candidate.offer().roleName()))
+        .toList();
+    if (playerOffers.stream().noneMatch(candidate -> candidate.status() == OfferStatus.PENDING)) {
+      List<EventBackupOffer> accepted = playerOffers.stream()
+          .filter(candidate -> candidate.status() == OfferStatus.ACCEPTED)
+          .map(OfferState::offer)
+          .toList();
+      return BackupResponse.info(accepted.isEmpty()
+          ? "This backup request has already been declined."
+          : "You are already confirmed as the backup for " + formatRoles(accepted) + ".");
     }
     if (!available) {
-      state.setStatus(OfferStatus.DECLINED);
-      return BackupResponse.info("You declined the backup request for **" + state.offer().roleName() + "**.");
+      playerOffers.forEach(candidate -> candidate.setStatus(OfferStatus.DECLINED));
+      return BackupResponse.info("You declined the backup request for this event.");
     }
 
-    boolean positionAlreadyCovered = offers.values().stream()
+    List<String> coveredRoles = findAcceptedOffers(state.offer().eventId()).stream()
+        .map(EventBackupOffer::roleKey)
+        .toList();
+    List<EventBackupOffer> accepted = playerOffers.stream()
+        .filter(candidate -> !coveredRoles.contains(candidate.offer().roleKey()))
         .map(OfferState::offer)
-        .filter(offer -> offer.eventId().equals(state.offer().eventId()))
-        .filter(offer -> offer.roleKey().equals(state.offer().roleKey()))
-        .anyMatch(offer -> offers.get(offer.offerId()).status() == OfferStatus.ACCEPTED);
-    if (positionAlreadyCovered) {
-      state.setStatus(OfferStatus.DECLINED);
-      return BackupResponse.info("Someone else has already accepted the backup position for **" + state.offer().roleName() + "**.");
+        .toList();
+    playerOffers.forEach(candidate -> candidate.setStatus(
+        coveredRoles.contains(candidate.offer().roleKey()) ? OfferStatus.DECLINED : OfferStatus.ACCEPTED));
+    if (accepted.isEmpty()) {
+      return BackupResponse.info("Someone else has already accepted all of these backup positions.");
     }
 
-    state.setStatus(OfferStatus.ACCEPTED);
-    return new BackupResponse("Thanks! You are confirmed as the backup for **" + state.offer().roleName() + "**.", state.offer());
+    return new BackupResponse("Thanks! You are confirmed as the backup for " + formatRoles(accepted) + ".", accepted);
+  }
+
+  private String formatRoles(List<EventBackupOffer> roleOffers) {
+    return roleOffers.stream().map(EventBackupOffer::roleName).distinct()
+        .map(name -> "**" + name + "**").collect(Collectors.joining(", "));
   }
 
   public List<EventBackupOffer> findAcceptedOffers(Long eventId) {
@@ -110,10 +126,10 @@ public class EventBackupService {
     offers.entrySet().removeIf(entry -> entry.getValue().expiresAt().isBefore(now));
   }
 
-  /** Reply for the responding user; {@code acceptedOffer} is set only when this response newly filled a backup position. */
-  public record BackupResponse(String message, EventBackupOffer acceptedOffer) {
+  /** Reply for the responding user and the positions newly filled by this response. */
+  public record BackupResponse(String message, List<EventBackupOffer> acceptedOffers) {
     static BackupResponse info(String message) {
-      return new BackupResponse(message, null);
+      return new BackupResponse(message, List.of());
     }
   }
 
