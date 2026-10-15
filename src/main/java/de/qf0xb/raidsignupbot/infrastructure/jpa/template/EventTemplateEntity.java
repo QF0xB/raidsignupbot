@@ -27,7 +27,6 @@ public class EventTemplateEntity implements Serializable {
   @Column(name = "name", nullable = false)
   private String name;
 
-  @Lob
   @Column(name = "details", nullable = false)
   private String details;
 
