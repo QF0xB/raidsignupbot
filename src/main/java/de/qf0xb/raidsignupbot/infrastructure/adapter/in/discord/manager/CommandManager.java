@@ -12,6 +12,8 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.IntegrationType;
+import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import org.jspecify.annotations.NonNull;
@@ -61,7 +63,10 @@ public class CommandManager extends ListenerAdapter {
     Set<CommandData> cmds = new HashSet<>();
     commands.forEach(
         command -> cmds.add(Commands.slash(command.getCommandName(), command.getDescription())
-            .addOptions(command.getOptions())));
+            .addOptions(command.getOptions())
+            // The bot needs to be a member of the server, so offer commands only where it is installed.
+            .setContexts(InteractionContextType.GUILD)
+            .setIntegrationTypes(IntegrationType.GUILD_INSTALL)));
 
     if (LaunchMode.current() == LaunchMode.DEVELOPMENT) {
       Optional<String> guildId = discordConfig.getGuildId();
@@ -91,6 +96,12 @@ public class CommandManager extends ListenerAdapter {
         .findFirst()
         .ifPresent(command -> {
           try {
+            if (event.getGuild() != null && event.getGuild().isDetached()) {
+              event.reply("I am not a member of this server. Ask a server admin to invite the bot to use its commands.")
+                  .setEphemeral(true)
+                  .queue();
+              return;
+            }
             if (!commandPermissionService.isAllowed(event, command.getAccessLevel())) {
               event.reply("You do not have permission to use this command.")
                   .setEphemeral(true)
