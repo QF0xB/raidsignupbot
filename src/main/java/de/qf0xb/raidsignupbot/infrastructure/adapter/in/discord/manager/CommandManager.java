@@ -14,8 +14,12 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.IntegrationType;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
+import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
+import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
+import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.command.CommandAccessLevel;
 import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
@@ -61,12 +65,18 @@ public class CommandManager extends ListenerAdapter {
 
   public void registerCommands() {
     Set<CommandData> cmds = new HashSet<>();
-    commands.forEach(
-        command -> cmds.add(Commands.slash(command.getCommandName(), command.getDescription())
-            .addOptions(command.getOptions())
-            // The bot needs to be a member of the server, so offer commands only where it is installed.
-            .setContexts(InteractionContextType.GUILD)
-            .setIntegrationTypes(IntegrationType.GUILD_INSTALL)));
+    commands.forEach(command -> {
+      SlashCommandData data = Commands.slash(command.getCommandName(), command.getDescription())
+          .addOptions(command.getOptions())
+          // The bot needs to be a member of the server, so offer commands only where it is installed.
+          .setContexts(InteractionContextType.GUILD)
+          .setIntegrationTypes(IntegrationType.GUILD_INSTALL);
+      if (command.getAccessLevel() == CommandAccessLevel.ADMIN) {
+        // Hide admin-only commands from regular members; the permission check still applies.
+        data.setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.MANAGE_SERVER));
+      }
+      cmds.add(data);
+    });
 
     if (LaunchMode.current() == LaunchMode.DEVELOPMENT) {
       Optional<String> guildId = discordConfig.getGuildId();

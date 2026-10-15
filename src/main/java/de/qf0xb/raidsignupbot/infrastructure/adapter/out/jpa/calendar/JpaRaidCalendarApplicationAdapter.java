@@ -42,6 +42,14 @@ public class JpaRaidCalendarApplicationAdapter
 
   @Override
   @Transactional
+  public void clearEventId(Long eventId) {
+    // save() uses a partial update that skips nulls, so unlink the event on the entity directly.
+    repository.find("eventId", eventId).list().forEach(entity -> entity.setEventId(null));
+    repository.flush();
+  }
+
+  @Override
+  @Transactional
   public List<RaidCalendarEntry> findByServerId(String serverId) {
     return repository.list("serverId = ?1 order by startAt", serverId).stream()
         .map(mapper::toDomain)

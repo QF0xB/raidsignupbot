@@ -18,5 +18,6 @@ public interface EventUIApplicationPort {
   void sendTeamsForApproval(Event event, TeamGeneratorResult result);
   void updateTeams(Event event, TeamGeneratorResult result);
   void deleteEvent(Event event);
+  void removeEventFromDiscord(Event event);
 
 }

@@ -7,6 +7,7 @@ import java.util.Optional;
 
 public interface RaidCalendarApplicationPort {
   Optional<RaidCalendarEntry> findById(Long id);
+  void clearEventId(Long eventId);
 
   List<RaidCalendarEntry> findByServerId(String serverId);
 

@@ -13,4 +13,5 @@ public interface EventApplicationPort {
   Set<Event> findByTemplateKey(String templateKey);
   Optional<Event> findByChannelId(String channelId);
   Event save(Event event);
+  void deleteById(Long id);
 }

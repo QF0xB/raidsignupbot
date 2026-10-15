@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -352,6 +353,24 @@ public class EventService {
   // Hosts and admins are picked freely in Discord, so they may not have been synced as guild members yet.
   private GuildMember ensureMember(String userId, Guild guild) {
     return guildMemberService.ensureGuildMember(userId, guild.getServerId(), guild.getName());
+  }
+
+  public Optional<Event> findEventByIdOptional(Long eventId) {
+    return eventApplicationPort.findById(eventId);
+  }
+
+  /**
+   * Removes the event, its teams, and pending approvals/backups, and frees its calendar entry.
+   * Discord messages and channels are cleaned up separately by the caller.
+   */
+  @Transactional
+  public Event deleteEvent(Long eventId) {
+    Event event = findEventById(eventId);
+    raidCalendarService.releaseEvent(eventId);
+    eventApplicationPort.deleteById(eventId);
+    pendingApprovalResults.remove(eventId);
+    eventBackupService.clearOffers(eventId);
+    return event;
   }
 
   public Event findEventById(Long eventId) {

@@ -93,6 +93,13 @@ public class JpaEventApplicationAdapter
 
   @Override
   @Transactional
+  public void deleteById(Long id) {
+    // Deleting the entity (not a bulk delete) cascades to teams and their assignments.
+    repository.findByIdOptional(id).ifPresent(repository::delete);
+  }
+
+  @Override
+  @Transactional
   public EventEntity partialUpdate(Event domain, EventEntity entity) {
     return getMapper().partialUpdate(domain, entity);
   }

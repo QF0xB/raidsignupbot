@@ -163,6 +163,12 @@ public class RaidCalendarService {
     calendarPort.save(entry);
   }
 
+  /** Detaches a deleted event so its calendar entry can be used for a new event. */
+  @Transactional
+  public void releaseEvent(Long eventId) {
+    calendarPort.clearEventId(eventId);
+  }
+
   @Transactional
   public void validateEventUpdate(String serverId, Long eventId, String guildName, Instant start) {
     if (start == null) {

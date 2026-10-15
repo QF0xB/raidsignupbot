@@ -385,6 +385,48 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
     }
   }
 
+  @Override
+  public void removeEventFromDiscord(Event event) {
+    Server server = serverService.findServerById(event.getGuild().getServerId());
+    if (server.isManageSignupChannels()) {
+      deleteChannelQuietly(event, event.getSignUpChannelId());
+    } else {
+      deleteMessageQuietly(event, event.getSignUpChannelId(), event.getMessageId());
+      deleteMessageQuietly(event, event.getSignUpChannelId(), event.getTeamsMessageId());
+    }
+    if (server.isManageVoiceChannels()) {
+      deleteChannelQuietly(event, event.getVoiceChannelId());
+    }
+  }
+
+  private void deleteChannelQuietly(Event event, String channelId) {
+    if (channelId == null) {
+      return;
+    }
+    try {
+      var channel = api.getGuildChannelById(channelId);
+      if (channel != null) {
+        channel.delete().complete();
+      }
+    } catch (RuntimeException ex) {
+      log.warn("Could not delete channel {} of event {}", channelId, event.getId(), ex);
+    }
+  }
+
+  private void deleteMessageQuietly(Event event, String channelId, String messageId) {
+    if (channelId == null || messageId == null) {
+      return;
+    }
+    try {
+      TextChannel channel = api.getTextChannelById(channelId);
+      if (channel != null) {
+        channel.deleteMessageById(messageId).complete();
+      }
+    } catch (RuntimeException ex) {
+      log.warn("Could not delete message {} of event {}", messageId, event.getId(), ex);
+    }
+  }
+
   public void onEventLifecycleNotification(@Observes EventLifecycleNotification notification) {
     eventApplicationPort.findById(notification.eventId())
         .ifPresentOrElse(

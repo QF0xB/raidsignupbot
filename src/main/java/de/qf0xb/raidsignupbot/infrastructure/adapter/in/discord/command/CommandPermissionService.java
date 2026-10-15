@@ -39,6 +39,7 @@ public class CommandPermissionService {
       case MANAGE_GUILDS -> hasRole(event, server.getGuildManagerRoleId());
       case MANAGE_TEMPLATES -> hasRole(event, server.getTemplateManagerRoleId());
       case MANAGE_EVENTS -> hasRole(event, server.getEventManagerRoleId());
+      case ADMIN -> false;
       case PUBLIC -> true;
     };
   }
