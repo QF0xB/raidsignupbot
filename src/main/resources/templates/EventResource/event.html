@@ -1,0 +1,210 @@
+{#include layout}
+{#title}{event.title} · Raid Signup Bot{/title}
+<p><a href="/">← Your servers</a></p>
+<h1>{event.title}</h1>
+<div class="meta">
+  <span class="badge {event.statusTone}">{event.status}</span>
+  <span><strong>{event.start}</strong> · {event.duration}</span>
+  <span>Guild <strong>{event.guildName}</strong></span>
+  <span>Event admin <strong>{event.eventAdminName}</strong></span>
+</div>
+
+{#if message}<p class="notice">{message}</p>{/if}
+{#if error}<p class="notice error">{error}</p>{/if}
+
+{#if event.approvalPending}
+<section class="panel">
+  <h2>Approval</h2>
+  {#if can.eventAdmin}
+  <p>These teams are a proposal. Swap boxes below if needed, then approve to publish them in Discord or reject to reopen signups.</p>
+  <div class="actions">
+    <form method="post" action="/events/{event.id}/approve">
+      <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+      <button type="submit" class="primary">Approve and publish</button>
+    </form>
+    <form method="post" action="/events/{event.id}/reject" onsubmit="return confirm('Reject the teams and reopen signups?')">
+      <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+      <button type="submit" class="danger">Reject</button>
+    </form>
+  </div>
+  {#else}
+  <p class="muted">Waiting for {event.eventAdminName} to approve these teams.</p>
+  {/if}
+</section>
+{/if}
+
+{#if event.teams.isEmpty}
+<p>Teams have not been generated yet.</p>
+{#else}
+<div class="teams{#if can.canSwap(event.approvalPending)} swappable{/if}">
+  {#for team in event.teams}
+  <section class="team">
+    <h2>Team {team.number} <small>{team.strategy}</small></h2>
+    <ul>
+      {#for slot in team.slots}
+      <li{#if slot.assigned && can.canSwap(event.approvalPending)} data-slot="{slot.id}" title="Drag onto another box to swap"{/if}>
+        <code>{slot.id}</code> <strong>{slot.roleName}</strong>
+        {#for utility in slot.utilities}<span class="tag">{utility}</span>{/for}
+        {#if slot.assigned}<span class="member">{slot.memberName}</span>{#else}<span class="member open">open</span>{/if}
+      </li>
+      {/for}
+    </ul>
+  </section>
+  {/for}
+</div>
+
+{#if can.canSwap(event.approvalPending)}
+<section class="panel">
+  <h2>Swap boxes</h2>
+  <p class="muted">
+    Drag a box onto another one, or click two boxes, to swap them. {#if event.approvalPending}Changes the proposal waiting for approval.{#else}Updates the published teams message in Discord.{/if}
+  </p>
+  <form method="post" action="/events/{event.id}/swap" class="inline" id="swap-form">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <select name="leftSlot" required>
+      <option value="">First box…</option>
+      {#for slot in event.assignedSlots}<option value="{slot.id}">{slot.id} {slot.roleName}: {slot.memberName}</option>{/for}
+    </select>
+    <span>⇄</span>
+    <select name="rightSlot" required>
+      <option value="">Second box…</option>
+      {#for slot in event.assignedSlots}<option value="{slot.id}">{slot.id} {slot.roleName}: {slot.memberName}</option>{/for}
+    </select>
+    <button type="submit">Swap</button>
+  </form>
+</section>
+{/if}
+{/if}
+
+{#if can.manage}
+<section class="panel">
+  <h2>Manage event</h2>
+  <p class="links"><a href="/events/{event.id}/edit">Edit event details</a></p>
+
+  {#if event.signupOpen}
+  <form method="post" action="/events/{event.id}/close-signup" class="inline" onsubmit="return confirm('Close signup and generate teams now?')">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <span class="label">Close signup and generate teams</span>
+    <button type="submit">Close signup</button>
+  </form>
+  {/if}
+
+  {#if !event.assignedPlayers.isEmpty}
+  <form method="post" action="/events/{event.id}/remove-signup" class="inline" onsubmit="return confirm('Remove this player and regenerate the teams?')">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <span class="label">Remove a signup and regenerate teams</span>
+    <select name="userId" required>
+      <option value="">Player…</option>
+      {#for player in event.assignedPlayers}<option value="{player.userId}">{player.memberName}</option>{/for}
+    </select>
+    <button type="submit">Remove</button>
+  </form>
+  {/if}
+
+  <form method="post" action="/events/{event.id}/postpone" class="inline">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <span class="label">Postpone start and end by</span>
+    <input type="number" name="days" min="1" step="1" value="1" required> day(s)
+    <button type="submit">Postpone</button>
+  </form>
+
+  <form method="post" action="/events/{event.id}/close" class="inline" onsubmit="return confirm('Close the event and remove its channels?')">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <span class="label">Close the event and remove its channels</span>
+    <button type="submit" class="danger">Close event</button>
+  </form>
+
+  {#if can.admin}
+  <form method="post" action="/events/{event.id}/delete" class="inline" onsubmit="return confirm('Permanently delete this event, its signup and teams?')">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <span class="label">Permanently delete the event (admins only)</span>
+    <button type="submit" class="danger">Delete event</button>
+  </form>
+  {/if}
+</section>
+{/if}
+
+{#if can.manage && inject:webConfig.simulationEnabled}
+<section class="panel test-mode">
+  <div class="panel-head">
+    <h2>Test mode</h2>
+    <span class="badge pending">Posts to Discord</span>
+  </div>
+  <p class="muted">
+    Runs the raid steps now instead of waiting. Simulated players are stored as guild members but never
+    mentioned, messaged, or given roles in Discord.
+  </p>
+
+  <h3>Team creation</h3>
+  <form method="post" action="/events/{event.id}/simulate/teams" class="grid" onsubmit="return confirm('Reopen the signup and create teams from simulated players? The result is posted to Discord.')">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <label>Simulated players <input type="number" name="players" min="1" max="300" value="40" required></label>
+    <label>Roles per player, min <input type="number" name="minRoles" min="1" value="1" required></label>
+    <label>Roles per player, max <input type="number" name="maxRoles" min="1" value="3" required></label>
+    <label>Utility reactions % <input type="number" name="utilityPercent" min="0" max="100" value="30" required></label>
+    <label>🛟 Backups % <input type="number" name="backupPercent" min="0" max="100" value="10" required></label>
+    <label>📦 Dual box % <input type="number" name="dualBoxPercent" min="0" max="100" value="5" required></label>
+    <label>Seed <input type="number" name="seed" placeholder="random"></label>
+    <label class="check"><input type="checkbox" name="randomPriority" value="true"> Random priorities</label>
+    <label class="check"><input type="checkbox" name="includeRealSignups" value="true" checked> Include real reactions</label>
+    <div><button type="submit" class="primary">Create teams</button></div>
+  </form>
+
+  <h3>Reminders</h3>
+  <div class="actions">
+    {#for stage in inject:webConfig.reminderStages}
+    <form method="post" action="/events/{event.id}/simulate/reminder">
+      <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+      <input type="hidden" name="stage" value="{stage}">
+      <button type="submit">Send {stage} ping</button>
+    </form>
+    {/for}
+  </div>
+  <p class="muted">The scheduled reminders still follow at their usual time.</p>
+</section>
+{/if}
+
+{#if can.canSwap(event.approvalPending)}
+<script>{|
+  // Drag a box onto another to swap them; clicking two boxes does the same on touch screens.
+  (() => {
+    const form = document.getElementById('swap-form');
+    const boxes = document.querySelectorAll('.teams.swappable li[data-slot]');
+    if (!form) return;
+    let selected = null;
+    const swap = (first, second) => {
+      if (!first || first === second) return;
+      form.leftSlot.value = first;
+      form.rightSlot.value = second;
+      form.submit();
+    };
+    boxes.forEach(box => {
+      box.draggable = true;
+      box.addEventListener('dragstart', event => {
+        event.dataTransfer.setData('text/plain', box.dataset.slot);
+        box.classList.add('dragging');
+      });
+      box.addEventListener('dragend', () => box.classList.remove('dragging'));
+      box.addEventListener('dragover', event => { event.preventDefault(); box.classList.add('drop-target'); });
+      box.addEventListener('dragleave', () => box.classList.remove('drop-target'));
+      box.addEventListener('drop', event => {
+        event.preventDefault();
+        box.classList.remove('drop-target');
+        swap(event.dataTransfer.getData('text/plain'), box.dataset.slot);
+      });
+      box.addEventListener('click', () => {
+        if (!selected) {
+          selected = box;
+          box.classList.add('selected');
+          return;
+        }
+        const first = selected;
+        first.classList.remove('selected');
+        selected = null;
+        swap(first.dataset.slot, box.dataset.slot);
+      });
+    });
+  })();
+|}</script>
+{/if}
+{/include}

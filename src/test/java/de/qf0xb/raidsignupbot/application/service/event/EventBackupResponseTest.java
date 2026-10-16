@@ -1,5 +1,6 @@
 package de.qf0xb.raidsignupbot.application.service.event;
 
+import de.qf0xb.raidsignupbot.application.service.guild.RaiderRoleService;
 import de.qf0xb.raidsignupbot.application.TeamGeneratorResult;
 import de.qf0xb.raidsignupbot.application.port.EventApplicationPort;
 import de.qf0xb.raidsignupbot.application.port.EventUIApplicationPort;
@@ -70,7 +71,8 @@ class EventBackupResponseTest {
         mock(TemplateService.class),
         uiPort,
         mock(RaidCalendarService.class),
-        backupService);
+        backupService,
+        mock(RaiderRoleService.class));
 
     service.respondToBackupOffer(declinerOffer, "decliner", false);
     assertTrue(service.respondToBackupOffer(declinerOffer, "decliner", true).contains("already been declined"));

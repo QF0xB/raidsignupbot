@@ -7,6 +7,7 @@ import de.qf0xb.raidsignupbot.application.port.EventUIApplicationPort;
 import de.qf0xb.raidsignupbot.application.port.template.EventTemplateApplicationPort;
 import de.qf0xb.raidsignupbot.application.service.generator.OrToolsTeamGeneratorService;
 import de.qf0xb.raidsignupbot.application.service.guild.GuildMemberService;
+import de.qf0xb.raidsignupbot.application.service.guild.RaiderRoleService;
 import de.qf0xb.raidsignupbot.application.service.guild.GuildService;
 import de.qf0xb.raidsignupbot.application.service.calendar.RaidCalendarService;
 import de.qf0xb.raidsignupbot.application.service.server.ServerService;
@@ -42,6 +43,7 @@ public class EventService {
   private final EventUIApplicationPort eventUIApplicationPort;
   private final RaidCalendarService raidCalendarService;
   private final EventBackupService eventBackupService;
+  private final RaiderRoleService raiderRoleService;
   private final Map<Long, TeamGeneratorResult> pendingApprovalResults = new ConcurrentHashMap<>();
 
   public EventService(
@@ -52,7 +54,8 @@ public class EventService {
       TemplateService templateService,
       EventUIApplicationPort eventUIApplicationPort,
       RaidCalendarService raidCalendarService,
-      EventBackupService eventBackupService) {
+      EventBackupService eventBackupService,
+      RaiderRoleService raiderRoleService) {
     this.eventApplicationPort = eventApplicationPort;
     this.guildService = guildService;
     this.serverService = serverService;
@@ -61,6 +64,7 @@ public class EventService {
     this.eventUIApplicationPort = eventUIApplicationPort;
     this.raidCalendarService = raidCalendarService;
     this.eventBackupService = eventBackupService;
+    this.raiderRoleService = raiderRoleService;
   }
 
   @Transactional
@@ -154,7 +158,7 @@ public class EventService {
     if (updatedEvent.isTeamsGenerated() && !updatedEvent.getTeams().isEmpty()) {
       eventUIApplicationPort.updateTeams(updatedEvent, new TeamGeneratorResult(updatedEvent.getTeams(), List.of()));
     }
-    return eventApplicationPort.save(updatedEvent);
+    return syncRaiderRoles(eventApplicationPort.save(updatedEvent));
   }
 
   @Transactional
@@ -195,7 +199,7 @@ public class EventService {
     Event savedEvent = eventApplicationPort.save(event);
     eventBackupService.extendOffers(eventId, newEnd);
     eventUIApplicationPort.announcePostponement(savedEvent, oldStart);
-    return savedEvent;
+    return syncRaiderRoles(savedEvent);
   }
 
   @Transactional
@@ -216,7 +220,7 @@ public class EventService {
 
     Event savedEvent = eventApplicationPort.save(event);
     eventUIApplicationPort.updateTeams(savedEvent, new TeamGeneratorResult(savedEvent.getTeams(), List.of()));
-    return eventApplicationPort.save(savedEvent);
+    return syncRaiderRoles(eventApplicationPort.save(savedEvent));
   }
 
   @Transactional
@@ -314,7 +318,7 @@ public class EventService {
     TeamGeneratorResult results = generateTeams(event, signups);
     Event savedEvent = eventApplicationPort.save(event);
     publishOrRequestApproval(savedEvent, results);
-    return eventApplicationPort.save(savedEvent);
+    return syncRaiderRoles(eventApplicationPort.save(savedEvent));
   }
 
   @Transactional
@@ -338,7 +342,35 @@ public class EventService {
     publishOrRequestApproval(event, results);
     event = eventApplicationPort.save(event);
 
-    return event;
+    return syncRaiderRoles(event);
+  }
+
+  /**
+   * Test mode: reopens the event and builds teams from simulated signups, optionally plus the real
+   * reactions, then publishes them or asks for approval exactly like closing the signup does.
+   */
+  @Transactional
+  public Event simulateTeamCreation(Long eventId, List<EventMemberSignup> simulatedSignups, boolean includeRealSignups) {
+    Event event = findEventById(eventId);
+    List<EventMemberSignup> signups = new ArrayList<>();
+    if (includeRealSignups && event.getMessageId() != null) {
+      signups.addAll(eventUIApplicationPort.closeSignup(event));
+    }
+    for (EventMemberSignup simulated : simulatedSignups) {
+      // Team assignments reference stored guild members, so simulated players are stored like real ones.
+      GuildMember member = ensureMember(simulated.getGuildMember().getUserId(), event.getGuild());
+      member.setPriority(simulated.getGuildMember().getPriority());
+      EventMemberSignup signup = new EventMemberSignup(member);
+      simulated.getRoleKeys().forEach(signup::addRoleKey);
+      signups.add(signup);
+    }
+
+    event.reopenSignup();
+    event.clearTeams();
+    pendingApprovalResults.remove(eventId);
+    eventBackupService.clearOffers(eventId);
+    eventApplicationPort.save(event);
+    return generateTeamsAndCloseSignup(eventId, signups);
   }
 
   @Transactional
@@ -357,20 +389,22 @@ public class EventService {
     event.clearApprovalPending();
     eventUIApplicationPort.publishTeams(event, result);
     eventUIApplicationPort.requestBackups(event, eventBackupService.findOffers(eventId));
-    return eventApplicationPort.save(event);
+    return syncRaiderRoles(eventApplicationPort.save(event));
   }
 
   @Transactional
   public String respondToBackupOffer(String offerId, String userId, boolean available) {
     EventBackupService.BackupResponse response = eventBackupService.respond(offerId, userId, available);
     if (!response.acceptedOffers().isEmpty()) {
-      eventUIApplicationPort.announceBackup(findEventById(response.acceptedOffers().getFirst().eventId()), response.acceptedOffers());
+      Event event = findEventById(response.acceptedOffers().getFirst().eventId());
+      eventUIApplicationPort.announceBackup(event, response.acceptedOffers());
+      syncRaiderRoles(event);
     }
     return response.message();
   }
 
   @Transactional
-  public Event rejectGeneratedTeams(Long eventId) {
+  public Event rejectGeneratedTeams(Long eventId, String rejectedByUserId) {
     Event event = findEventById(eventId);
     if (!event.isApprovalPending()) {
       throw new IllegalStateException("Event " + eventId + " does not have pending team approval");
@@ -383,7 +417,31 @@ public class EventService {
     event.clearApprovalPending();
     pendingApprovalResults.remove(eventId);
     eventBackupService.clearOffers(eventId);
+    Event savedEvent = eventApplicationPort.save(event);
+    eventUIApplicationPort.announceTeamsRejected(savedEvent, rejectedByUserId);
+    return syncRaiderRoles(savedEvent);
+  }
+
+  /** Ends the event: closes signup, suppresses remaining reminders, and removes its Discord channels. */
+  @Transactional
+  public Event closeEvent(Long eventId) {
+    Event event = findEventById(eventId);
+    event.closeSignup();
+    event.markFifteenMinutesBeforeEmitted();
+    event.markOneHourAfterEmitted();
+    event.markOneHourBeforeEmitted();
+    event.markThirtyMinutesBeforeEmitted();
+    eventUIApplicationPort.deleteEvent(event);
+    releaseRaiderRoles(eventId);
     return eventApplicationPort.save(event);
+  }
+
+  /** Deletes the event and removes its signup message, teams message, and managed channels from Discord. */
+  @Transactional
+  public Event deleteEventEverywhere(Long eventId) {
+    Event deleted = deleteEvent(eventId);
+    eventUIApplicationPort.removeEventFromDiscord(deleted);
+    return deleted;
   }
 
   @Transactional
@@ -436,11 +494,30 @@ public class EventService {
   @Transactional
   public Event deleteEvent(Long eventId) {
     Event event = findEventById(eventId);
+    releaseRaiderRoles(eventId);
     raidCalendarService.releaseEvent(eventId);
     eventApplicationPort.deleteById(eventId);
     pendingApprovalResults.remove(eventId);
     eventBackupService.clearOffers(eventId);
     return event;
+  }
+
+  // Role problems such as a missing Manage Roles permission must not break the raid itself.
+  private Event syncRaiderRoles(Event event) {
+    try {
+      raiderRoleService.syncEvent(event);
+    } catch (RuntimeException ex) {
+      log.warn("Could not update raider roles for event {}", event.getId(), ex);
+    }
+    return event;
+  }
+
+  private void releaseRaiderRoles(Long eventId) {
+    try {
+      raiderRoleService.releaseEvent(eventId);
+    } catch (RuntimeException ex) {
+      log.warn("Could not release raider roles for event {}", eventId, ex);
+    }
   }
 
   public Event findEventById(Long eventId) {

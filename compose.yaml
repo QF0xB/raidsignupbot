@@ -29,7 +29,18 @@ services:
       QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       DISCORD_TOKEN: ${DISCORD_TOKEN:?set DISCORD_TOKEN in .env}
       DISCORD_APPLICATION_ID: ${DISCORD_APPLICATION_ID:?set DISCORD_APPLICATION_ID in .env}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:?set DISCORD_CLIENT_SECRET in .env}
+      WEB_BASE_URL: https://${WEB_HOST}
       JAVA_OPTS_APPEND: -Xmx384m -Djava.util.logging.manager=org.jboss.logmanager.LogManager
+    # The web UI listens on plain HTTP; Traefik terminates TLS. Do not publish the port directly,
+    # the app trusts X-Forwarded-* headers. Attach Traefik's network here if it runs in another project.
+    expose:
+      - "8080"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.raidsignupbot.rule: Host(`${WEB_HOST:?set WEB_HOST in .env}`)
+      traefik.http.routers.raidsignupbot.tls: "true"
+      traefik.http.services.raidsignupbot.loadbalancer.server.port: "8080"
 
 volumes:
   db-data:

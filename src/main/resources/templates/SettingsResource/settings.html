@@ -1,0 +1,117 @@
+{#include layout}
+{#title}Settings · {server.name}{/title}
+{#include serverNav active="settings" /}
+<h1>Guilds &amp; settings</h1>
+{#if message}<p class="notice">{message}</p>{/if}
+{#if error}<p class="notice error">{error}</p>{/if}
+
+<section class="panel">
+  <h2>Server</h2>
+  <form method="post" action="/servers/{server.id}/settings/server" class="grid">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <label>Guild manager role
+      <select name="guildManagerRoleId">
+        <option value="">Not set</option>
+        {#for role in roles}<option value="{role.id}"{#if role.id == settings.guildManagerRoleId} selected{/if}>{role.name}</option>{/for}
+      </select>
+    </label>
+    <label>Template manager role
+      <select name="templateManagerRoleId">
+        <option value="">Not set</option>
+        {#for role in roles}<option value="{role.id}"{#if role.id == settings.templateManagerRoleId} selected{/if}>{role.name}</option>{/for}
+      </select>
+    </label>
+    <label>Event manager role
+      <select name="eventManagerRoleId">
+        <option value="">Not set</option>
+        {#for role in roles}<option value="{role.id}"{#if role.id == settings.eventManagerRoleId} selected{/if}>{role.name}</option>{/for}
+      </select>
+    </label>
+    <label>Signup channels
+      <select name="manageSignupChannels">
+        <option value="true"{#if settings.manageSignupChannels} selected{/if}>Created by the bot</option>
+        <option value="false"{#if !settings.manageSignupChannels} selected{/if}>Chosen per event</option>
+      </select>
+    </label>
+    <label>Voice channels
+      <select name="manageVoiceChannels">
+        <option value="true"{#if settings.manageVoiceChannels} selected{/if}>Created by the bot</option>
+        <option value="false"{#if !settings.manageVoiceChannels} selected{/if}>Chosen per event</option>
+      </select>
+    </label>
+    <label>Raid voice category
+      <select name="raidVoiceChannelCategory">
+        <option value="">Not set</option>
+        {#for category in categories}<option value="{category.id}"{#if category.id == settings.raidVoiceChannelCategory} selected{/if}>{category.name}</option>{/for}
+      </select>
+    </label>
+    <div><button type="submit" class="primary">Save server settings</button></div>
+  </form>
+  <p class="muted">Like in Discord, a role that is set cannot be cleared here, only replaced.</p>
+</section>
+
+<section class="panel">
+  <h2>Guilds</h2>
+  {#for guild in guilds}
+  <form method="post" action="/servers/{server.id}/settings/guilds/{guild.name}" class="grid guild">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <label>Name <input type="text" name="name" value="{guild.name}" required></label>
+    <label>Raider roles
+      <select name="raiderRolesEnabled">
+        <option value="true"{#if guild.raiderRolesEnabled} selected{/if}>Enabled</option>
+        <option value="false"{#if !guild.raiderRolesEnabled} selected{/if}>Disabled</option>
+      </select>
+    </label>
+    <label>Raider role
+      <select name="raiderRoleId">
+        <option value="">Not set</option>
+        {#for role in roles}<option value="{role.id}"{#if role.id == guild.raiderRoleId} selected{/if}>{role.name}</option>{/for}
+      </select>
+    </label>
+    <label>Event role
+      <select name="eventRoleId">
+        <option value="">Not set</option>
+        {#for role in roles}<option value="{role.id}"{#if role.id == guild.eventRoleId} selected{/if}>{role.name}</option>{/for}
+      </select>
+    </label>
+    <div><button type="submit">Save guild</button></div>
+  </form>
+  {#else}
+  <p class="muted">No guilds yet.</p>
+  {/for}
+
+  <h3>Add a guild</h3>
+  <form method="post" action="/servers/{server.id}/settings/guilds" class="grid">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <label>Name <input type="text" name="name" required></label>
+    <label>Raider roles
+      <select name="raiderRolesEnabled">
+        <option value="true">Enabled</option>
+        <option value="false">Disabled</option>
+      </select>
+    </label>
+    <label>Raider role
+      <select name="raiderRoleId">
+        <option value="">Not set</option>
+        {#for role in roles}<option value="{role.id}">{role.name}</option>{/for}
+      </select>
+    </label>
+    <label>Event role
+      <select name="eventRoleId">
+        <option value="">Not set</option>
+        {#for role in roles}<option value="{role.id}">{role.name}</option>{/for}
+      </select>
+    </label>
+    <div><button type="submit" class="primary">Add guild</button></div>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Guild members</h2>
+  <form method="post" action="/servers/{server.id}/settings/sync" class="inline">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <span class="label">Synchronize guild members from Discord roles</span>
+    <button type="submit">Sync members</button>
+  </form>
+</section>
+{/include}

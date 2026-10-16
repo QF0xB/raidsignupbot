@@ -33,6 +33,15 @@ public class TemplateService {
   }
 
   @Transactional
+  public EventTemplate updateTemplate(String serverId, String key, String name, String emojiSlug, String details) {
+    EventTemplate template = findTemplateByKey(serverId, key);
+    template.setName(name);
+    template.setEmojiSlug(emojiSlug);
+    template.setDetails(details);
+    return templateApplicationPort.save(template);
+  }
+
+  @Transactional
   public EventTemplate findTemplateByKey(String serverId, String key) {
     return templateApplicationPort.findByServerIdAndKey(serverId, key).orElseThrow(
         () -> new IllegalArgumentException("Template with key " + key + " not found for server " + serverId)

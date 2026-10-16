@@ -94,8 +94,7 @@ public class EventApprovalHandler implements ComponentInteractionHandler {
             .setComponents(List.of())
             .queue();
       } else {
-        eventService.rejectGeneratedTeams(parsed.eventId());
-        notifyRejection(storedEvent.getSignUpChannelId(), event.getUser().getAsMention());
+        eventService.rejectGeneratedTeams(parsed.eventId(), event.getUser().getId());
         event.getHook().editOriginal("Teams rejected. Signups were reopened.")
             .setComponents(List.of())
             .queue();
@@ -104,18 +103,6 @@ public class EventApprovalHandler implements ComponentInteractionHandler {
       log.error("Failed to handle approval action for event {}", parsed.eventId(), ex);
       event.getHook().editOriginal("Failed to handle approval action: " + failureMessage(ex))
           .setComponents(List.of())
-          .queue();
-    }
-  }
-
-  private void notifyRejection(String signUpChannelId, String moderatorMention) {
-    if (signUpChannelId == null || signUpChannelId.isBlank()) {
-      return;
-    }
-
-    TextChannel textChannel = api.getTextChannelById(signUpChannelId);
-    if (textChannel != null) {
-      textChannel.sendMessage("Teams were rejected by " + moderatorMention + ". Signups are open again.")
           .queue();
     }
   }

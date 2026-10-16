@@ -1,0 +1,92 @@
+{#include layout}
+{#title}Simulate {template.name} · Templates{/title}
+{#include serverNav active="templates" /}
+<p><a href="/servers/{server.id}/templates/{template.key}">← {template.name}</a></p>
+<h1>Team simulator <small>{template.name}</small></h1>
+<p class="muted">Generates made-up signups and runs the same team generator as real raids. Nothing is saved and nothing is posted to Discord.</p>
+{#if error}<p class="notice error">{error}</p>{/if}
+
+<section class="panel">
+  <form method="get" action="/servers/{server.id}/templates/{template.key}/simulate" class="grid">
+    <input type="hidden" name="run" value="true">
+    <label>Players <input type="number" name="players" min="1" max="{form.maxPlayers}" value="{form.players}" required></label>
+    <label>Roles per player, min <input type="number" name="minRoles" min="1" value="{form.minRoles}" required></label>
+    <label>Roles per player, max <input type="number" name="maxRoles" min="1" value="{form.maxRoles}" required></label>
+    <label>Utility reactions % <input type="number" name="utilityPercent" min="0" max="100" value="{form.utilityPercent}" required></label>
+    <label>🛟 Backups % <input type="number" name="backupPercent" min="0" max="100" value="{form.backupPercent}" required></label>
+    <label>📦 Dual box % <input type="number" name="dualBoxPercent" min="0" max="100" value="{form.dualBoxPercent}" required></label>
+    <label>Seed <input type="number" name="seed" value="{form.seed}" required></label>
+    <label class="check"><input type="checkbox" name="randomPriority" value="true"{#if form.randomPriority} checked{/if}> Random priorities (0–5)</label>
+    <div class="actions">
+      <button type="submit" class="primary">Simulate</button>
+      <a class="button" href="/servers/{server.id}/templates/{template.key}/simulate?run=true&amp;players={form.players}&amp;minRoles={form.minRoles}&amp;maxRoles={form.maxRoles}&amp;utilityPercent={form.utilityPercent}&amp;backupPercent={form.backupPercent}&amp;dualBoxPercent={form.dualBoxPercent}{#if form.randomPriority}&amp;randomPriority=true{/if}">New random seed</a>
+    </div>
+  </form>
+  <p class="muted">Each player reacts with a random number of primary roles in the given range, and with utility roles they could fill. The same seed always produces the same signups.</p>
+</section>
+
+{#if report}
+<div class="stats">
+  <div class="stat"><span>Players</span><strong>{report.players}</strong></div>
+  <div class="stat"><span>Teams</span><strong>{report.teams.teams.size}</strong></div>
+  <div class="stat"><span>Placed players</span><strong>{report.assignedPlayers}</strong></div>
+  <div class="stat"><span>Left out</span><strong>{report.unassigned.size}</strong></div>
+  <div class="stat"><span>Filled slots</span><strong>{report.filledSlots}</strong></div>
+  <div class="stat{#if report.openSlots > 0} warn{/if}"><span>Open slots</span><strong>{report.openSlots}</strong></div>
+  <div class="stat"><span>Dual-boxing</span><strong>{report.dualBoxers}</strong></div>
+  <div class="stat"><span>Backups placed</span><strong>{report.backupsPlaced}</strong></div>
+  <div class="stat"><span>Solver time</span><strong>{report.millis} ms</strong></div>
+</div>
+
+<section class="panel">
+  <h2>Role demand</h2>
+  <table>
+    <thead><tr><th>Role</th><th>Kind</th><th>Players reacting</th><th>Slots</th><th>Filled</th></tr></thead>
+    <tbody>
+    {#for role in report.roles}
+    <tr>
+      <td><strong>{role.name}</strong></td>
+      <td class="muted">{role.kind}</td>
+      <td>{role.signups}</td>
+      <td>{role.slots}</td>
+      <td>{#if role.missing > 0}<span class="badge pending">{role.filled} of {role.slots}</span>{#else}<span class="badge open">{role.filled}</span>{/if}</td>
+    </tr>
+    {/for}
+    </tbody>
+  </table>
+</section>
+
+{#if report.teams.teams.isEmpty}
+<p class="notice error">The generator could not build a single team from these signups.</p>
+{#else}
+<div class="teams">
+  {#for team in report.teams.teams}
+  <section class="team">
+    <h2>Team {team.number} <small>{team.strategy}</small></h2>
+    <ul>
+      {#for slot in team.slots}
+      <li>
+        <code>{slot.id}</code> <strong>{slot.roleName}</strong>
+        {#for utility in slot.utilities}<span class="tag">{utility}</span>{/for}
+        {#if slot.assigned}<span class="member">{slot.memberName}</span>{#else}<span class="member open">open</span>{/if}
+      </li>
+      {/for}
+    </ul>
+  </section>
+  {/for}
+</div>
+{/if}
+
+{#if !report.unassigned.isEmpty}
+<section class="panel">
+  <h2>Left out ({report.unassigned.size})</h2>
+  <table>
+    <thead><tr><th>Player</th><th>Reacted with</th></tr></thead>
+    <tbody>
+    {#for player in report.unassigned}<tr><td>{player.name}</td><td>{player.roles}</td></tr>{/for}
+    </tbody>
+  </table>
+</section>
+{/if}
+{/if}
+{/include}

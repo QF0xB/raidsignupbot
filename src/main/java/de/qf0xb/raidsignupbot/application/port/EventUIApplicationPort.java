@@ -21,5 +21,6 @@ public interface EventUIApplicationPort {
   void updateTeams(Event event, TeamGeneratorResult result);
   void deleteEvent(Event event);
   void removeEventFromDiscord(Event event);
+  void announceTeamsRejected(Event event, String rejectedByUserId);
 
 }

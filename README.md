@@ -10,6 +10,23 @@ Each guild can have at most one raid on a calendar day. The check includes both 
 
 This project uses Quarkus, the Supersonic Subatomic Java Framework.
 
+## Web UI
+
+The bot serves a web UI on port 8080 that offers everything the slash commands do; the commands keep working, and both use the same services, so every change shows up in Discord. Users log in with Discord, and each page requires the same permission as its command (server administrators, Manage Server, the owner, or the configured manager roles):
+
+- **Events** (event managers): edit details, close signup, remove signups, swap boxes using the `team:slot` numbering, postpone, close, and delete (admins only).
+- **Approval** (the event admin): approve, reject, or swap boxes in the proposal. Approval messages in Discord link to this page when `WEB_BASE_URL` is set.
+- **Calendar**: view and refresh it; guild managers schedule and remove entries and choose the calendar channel. Guild managers and the entry's host create events from free entries.
+- **Templates** (template managers): create, edit details, strategies, guides, and roles, import, and export.
+- **Guilds & settings** (guild managers): manager roles, channel handling, guilds, and member sync.
+
+Setup:
+
+1. In the Discord developer portal, open the bot's application, copy the OAuth2 client secret into `DISCORD_CLIENT_SECRET`, and add `https://<WEB_HOST>/auth/callback` as a redirect.
+2. Set `WEB_HOST` in `.env`. `compose.yaml` labels the bot for Traefik, which terminates TLS. The app trusts `X-Forwarded-*` headers, so don't publish port 8080 directly.
+
+In dev mode, add `http://localhost:8080/auth/callback` as a redirect and export `DISCORD_CLIENT_SECRET`.
+
 ## Postponing a raid
 
 Event managers can use `/postponeraid event:<raid> minutes:30` to delay an upcoming raid. Both start and end move by the given number of minutes, preserving the duration, signup reactions, teams, pending approval, and backup responses. The bot updates the signup and published teams messages, moves the linked calendar entry when needed, refreshes the calendar, and posts the new start time in the signup channel. Reminders follow the new schedule without immediately repeating ones already sent. The command rejects raids that have started and moves that would create a second raid for the same guild on the same day.
@@ -62,6 +79,18 @@ If you want to build an _über-jar_, execute the following raidCommand:
 ```
 
 The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
+
+## Building the Docker image locally
+
+The JVM image only copies the build output, so both architectures build without emulation. With Docker's containerd image store enabled, the multi-arch image can be loaded locally:
+
+```shell script
+mvn package
+docker buildx build --platform linux/amd64,linux/arm64 -f src/main/docker/Dockerfile.jvm \
+  -t ghcr.io/qf0xb/raidsignupbot:local --load .
+```
+
+Replace `--load` with `--push` to publish the manifest list instead. Run it with `BOT_TAG=local docker compose up -d`.
 
 ## Creating a native executable
 

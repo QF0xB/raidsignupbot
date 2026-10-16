@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{#insert title}Raid Signup Bot{/insert}</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/"><span class="brand-mark">⚔</span> Raid Signup Bot</a>
+    {#if userName??}
+    <form method="post" action="/logout" class="session">
+      <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+      <span class="user">{userName}</span>
+      <button type="submit">Log out</button>
+    </form>
+    {/if}
+  </div>
+</header>
+<main>
+  {#insert /}
+</main>
+</body>
+</html>

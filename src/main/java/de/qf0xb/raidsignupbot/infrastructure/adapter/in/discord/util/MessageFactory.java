@@ -4,6 +4,7 @@ import de.qf0xb.raidsignupbot.application.TeamGeneratorResult;
 import de.qf0xb.raidsignupbot.application.service.event.EventLifecycleStage;
 import de.qf0xb.raidsignupbot.domain.model.event.*;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
+import de.qf0xb.raidsignupbot.domain.model.guild.SimulatedPlayer;
 import de.qf0xb.raidsignupbot.domain.model.template.EventRole;
 import de.qf0xb.raidsignupbot.domain.model.template.EventStrategy;
 import de.qf0xb.raidsignupbot.domain.model.template.EventUtilityRole;
@@ -61,6 +62,7 @@ public class MessageFactory {
   public String buildMentionList(List<? extends EventMemberSignup> signups) {
     return signups.stream()
         .map(signup -> signup.getGuildMember().getUserId())
+        .filter(userId -> !SimulatedPlayer.isSimulated(userId))
         .distinct()
         .map(userId -> "<@" + userId + ">")
         .collect(Collectors.joining(" "));
@@ -258,13 +260,18 @@ public class MessageFactory {
     return buildTeams(event, new TeamGeneratorResult(event.getTeams(), List.of()));
   }
 
+  // Simulated players are not Discord users, so they are written by name instead of mentioned.
+  private static String mention(String userId) {
+    return SimulatedPlayer.isSimulated(userId) ? SimulatedPlayer.displayName(userId) : "<@" + userId + ">";
+  }
+
   public String buildTeam(EventTeam eventTeam, int count) {
     StringBuilder sb = new StringBuilder();
     sb.append(String.format("**Team %s: %s Strategy**", count, eventTeam.getStrategy().getName()));
     for (int slotIndex = 0; slotIndex < eventTeam.getSlots().size(); slotIndex++) {
       EventSlot slot = eventTeam.getSlots().get(slotIndex);
-      sb.append(String.format("\n`%d:%d` %s (%s): <@%s>", count, slotIndex + 1,
-          slot.getEmojiSlug(), slot.getRoleName(), slot.getMember().getUserId()));
+      sb.append(String.format("\n`%d:%d` %s (%s): %s", count, slotIndex + 1,
+          slot.getEmojiSlug(), slot.getRoleName(), mention(slot.getMember().getUserId())));
     }
 
     for (EventUtilityAssignment utilityAssignment : eventTeam.getUtilityAssignments()) {
@@ -273,10 +280,10 @@ public class MessageFactory {
             .filter(index -> eventTeam.utilitiesForSlot(eventTeam.getSlots().get(index)).contains(utilityAssignment))
             .findFirst().orElseThrow();
         sb.append(String.format(
-            "\n↳ `%d:%d` %s (%s): <@%s>", count, primaryIndex + 1,
+            "\n↳ `%d:%d` %s (%s): %s", count, primaryIndex + 1,
             utilityAssignment.getEmojiSlug(),
             utilityAssignment.getRoleName(),
-            utilityAssignment.getMember().getUserId()));
+            mention(utilityAssignment.getMember().getUserId())));
       }
     }
     sb.append("\n\n");

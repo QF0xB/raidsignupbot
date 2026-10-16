@@ -1,7 +1,7 @@
 package de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.command.event;
 
 import de.qf0xb.raidsignupbot.application.port.EventApplicationPort;
-import de.qf0xb.raidsignupbot.application.port.EventUIApplicationPort;
+import de.qf0xb.raidsignupbot.application.service.event.EventService;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.command.CommandAccessLevel;
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.command.EventRaidCommand;
@@ -25,7 +25,7 @@ public class CloseEventCommand extends EventRaidCommand {
   EventApplicationPort eventApplicationPort;
 
   @Inject
-  EventUIApplicationPort eventUIApplicationPort;
+  EventService eventService;
 
   @Inject
   JDA api;
@@ -53,13 +53,7 @@ public class CloseEventCommand extends EventRaidCommand {
         "Missing required option: " + OPTION_NAME).getAsString();
     Event raidEvent = getEventByChannelName(channelName);
 
-    raidEvent.closeSignup();
-    raidEvent.markFifteenMinutesBeforeEmitted();
-    raidEvent.markOneHourAfterEmitted();
-    raidEvent.markOneHourBeforeEmitted();
-    raidEvent.markThirtyMinutesBeforeEmitted();
-    eventUIApplicationPort.deleteEvent(raidEvent);
-    eventApplicationPort.save(raidEvent);
+    eventService.closeEvent(raidEvent.getId());
 
     event.getHook().sendMessage("Event " + channelName + " successfully closed").queue();
   }

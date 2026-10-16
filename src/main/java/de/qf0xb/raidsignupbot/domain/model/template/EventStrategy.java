@@ -38,6 +38,11 @@ public class EventStrategy {
     guides.remove(guide);
   }
 
+  public void replaceGuides(List<String> newGuides) {
+    guides.clear();
+    guides.addAll(newGuides);
+  }
+
   public void addRole(EventRole role) {
     if (role instanceof EventUtilityRole utilityRole) {
       utilityRoles.add(utilityRole);

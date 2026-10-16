@@ -1,0 +1,4 @@
+<form method="post" action="/servers/{server.id}/templates/{template.key}/strategies/{strategy.key}/roles/{role.key}/delete" onsubmit="return confirm('Remove this role?')">
+  <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+  <button type="submit" class="link danger">Remove</button>
+</form>

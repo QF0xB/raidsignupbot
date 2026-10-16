@@ -1,0 +1,6 @@
+<nav class="server-nav">
+  <strong>{server.name}</strong>
+  <a href="/servers/{server.id}/calendar"{#if active == 'calendar'} class="active"{/if}>Calendar</a>
+  {#if server.manageTemplates}<a href="/servers/{server.id}/templates"{#if active == 'templates'} class="active"{/if}>Templates</a>{/if}
+  {#if server.manageGuilds}<a href="/servers/{server.id}/settings"{#if active == 'settings'} class="active"{/if}>Guilds &amp; settings</a>{/if}
+</nav>

@@ -7,6 +7,7 @@ import de.qf0xb.raidsignupbot.domain.model.template.EventUtilityRole;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 
+import java.util.List;
 import java.util.Set;
 
 @ApplicationScoped
@@ -22,6 +23,15 @@ public class EventStrategyService {
   public EventTemplate addStrategy(String serverId, String templateKey, String strategyKey, String name) {
     EventTemplate template = templateService.findTemplateByKey(serverId, templateKey);
     template.addStrategy(new EventStrategy(strategyKey, name));
+    return templateService.save(template);
+  }
+
+  @Transactional
+  public EventTemplate updateStrategy(String serverId, String templateKey, String strategyKey, String name, List<String> guides) {
+    EventTemplate template = templateService.findTemplateByKey(serverId, templateKey);
+    EventStrategy strategy = requireStrategy(template, strategyKey);
+    strategy.setName(name);
+    strategy.replaceGuides(guides);
     return templateService.save(template);
   }
 
@@ -56,6 +66,23 @@ public class EventStrategyService {
     return templateService.save(template);
   }
 
+  /** Updates a role in place; {@code eligiblePrimaryRoleKeys} only applies to utility roles. */
+  @Transactional
+  public EventTemplate updateRole(String serverId, String templateKey, String strategyKey, String roleKey, String name, String emojiSlug, int requiredCount, Set<String> eligiblePrimaryRoleKeys) {
+    EventTemplate template = templateService.findTemplateByKey(serverId, templateKey);
+    EventRole role = requireStrategy(template, strategyKey).findRole(roleKey).orElseThrow(
+        () -> new IllegalArgumentException("Role with key " + roleKey + " not found")
+    );
+    role.setName(name);
+    role.setEmojiSlug(emojiSlug);
+    role.setRequiredCount(requiredCount);
+    if (role instanceof EventUtilityRole utilityRole) {
+      utilityRole.clearEligiblePrimaryRoles();
+      eligiblePrimaryRoleKeys.forEach(utilityRole::addEligiblePrimaryRole);
+    }
+    return templateService.save(template);
+  }
+
   @Transactional
   public EventTemplate removeRole(String serverId, String templateKey, String strategyKey, String roleKey) {
     EventTemplate template = templateService.findTemplateByKey(serverId, templateKey);
@@ -65,5 +92,11 @@ public class EventStrategyService {
 
     strategy.removeRole(roleKey);
     return templateService.save(template);
+  }
+
+  private EventStrategy requireStrategy(EventTemplate template, String strategyKey) {
+    return template.getStrategy(strategyKey).orElseThrow(
+        () -> new IllegalArgumentException("Strategy with key " + strategyKey + " not found")
+    );
   }
 }

@@ -1,5 +1,6 @@
 package de.qf0xb.raidsignupbot.application.service.event;
 
+import de.qf0xb.raidsignupbot.application.service.guild.RaiderRoleService;
 import de.qf0xb.raidsignupbot.application.TeamGeneratorResult;
 import de.qf0xb.raidsignupbot.application.port.EventApplicationPort;
 import de.qf0xb.raidsignupbot.application.port.EventUIApplicationPort;
@@ -41,7 +42,7 @@ class EventPostponeTest {
   private final RaidCalendarService calendar = new RaidCalendarService(calendarPort, eventPort,
       mock(ServerService.class), mock(GuildService.class), mock(EventTemplateApplicationPort.class));
   private final EventService service = new EventService(eventPort, mock(GuildService.class),
-      mock(ServerService.class), mock(GuildMemberService.class), mock(TemplateService.class), ui, calendar, backups);
+      mock(ServerService.class), mock(GuildMemberService.class), mock(TemplateService.class), ui, calendar, backups, mock(RaiderRoleService.class));
 
   @Test
   void preservesRaidStateAndMovesLinkedCalendarEntryAcrossDays() {

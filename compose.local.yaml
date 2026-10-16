@@ -1,0 +1,14 @@
+# Local run without Traefik: docker compose -f compose.yaml -f compose.local.yaml up -d
+# Register http://localhost:8080/auth/callback as OAuth2 redirect in the Discord developer portal.
+services:
+  bot:
+    image: ghcr.io/qf0xb/raidsignupbot:local
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      # Plain HTTP on localhost: keep the login redirect on http.
+      QUARKUS_OIDC_AUTHENTICATION_FORCE_REDIRECT_HTTPS_SCHEME: "false"
+      QUARKUS_OIDC_AUTHENTICATION_COOKIE_FORCE_SECURE: "false"
+      QUARKUS_REST_CSRF_COOKIE_FORCE_SECURE: "false"
+      WEB_BASE_URL: http://localhost:8080
+      WEB_SIMULATION_ENABLED: "true"

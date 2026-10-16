@@ -1,0 +1,94 @@
+{#include layout}
+{#title}Calendar · {server.name}{/title}
+{#include serverNav active="calendar" /}
+<div class="panel-head">
+  <div>
+    <h1>Raid calendar</h1>
+    <p class="muted">{#if calendarChannel}Published in #{calendarChannel}.{#else}No calendar channel configured yet.{/if}</p>
+  </div>
+  {#if calendarChannel && server.any}
+  <form method="post" action="/servers/{server.id}/calendar/refresh">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <button type="submit">Refresh Discord calendar</button>
+  </form>
+  {/if}
+</div>
+{#if message}<p class="notice">{message}</p>{/if}
+{#if error}<p class="notice error">{error}</p>{/if}
+
+<table>
+  <thead><tr><th>Day</th><th>Guild</th><th>Raid</th><th>Host</th><th>Duration</th><th>Event</th><th></th></tr></thead>
+  <tbody>
+  {#for entry in entries}
+  <tr class="{#if entry.past}muted{/if}">
+    <td>{entry.day}</td>
+    <td>{entry.guildName}</td>
+    <td>{entry.template}</td>
+    <td>{entry.hosterName}</td>
+    <td>{entry.duration}</td>
+    <td>
+      {#if entry.eventId}<a href="/events/{entry.eventId}">Event {entry.eventId}</a>
+      {#else if entry.canCreateEvent}<a href="/servers/{server.id}/events/new?entryId={entry.id}">Create event</a>
+      {#else}<span class="muted">—</span>{/if}
+    </td>
+    <td>
+      {#if server.manageGuilds && !entry.eventId}
+      <form method="post" action="/servers/{server.id}/calendar/entries/{entry.id}/delete" onsubmit="return confirm('Remove this calendar entry?')">
+        <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+        <button type="submit" class="link danger">Remove</button>
+      </form>
+      {/if}
+    </td>
+  </tr>
+  {#else}
+  <tr><td colspan="7" class="muted">No calendar entries.</td></tr>
+  {/for}
+  </tbody>
+</table>
+
+{#if server.manageGuilds}
+<section class="panel">
+  <h2>Schedule a raid</h2>
+  <form method="post" action="/servers/{server.id}/calendar/entries" class="grid">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <label>Guild
+      <select name="guildName" required>
+        <option value="">Choose…</option>
+        {#for guild in guilds}<option value="{guild}">{guild}</option>{/for}
+      </select>
+    </label>
+    <label>Template
+      <select name="templateKey" required>
+        <option value="">Choose…</option>
+        {#for template in templates}<option value="{template.id}">{template.name} ({template.id})</option>{/for}
+      </select>
+    </label>
+    <label>Host
+      <select name="hosterUserId" required>
+        <option value="">Choose…</option>
+        {#for member in members}<option value="{member.id}">{member.name}</option>{/for}
+      </select>
+    </label>
+    <label>Date <input type="date" name="date" min="{today}" required></label>
+    <label>Duration
+      <select name="duration" required>
+        {#for duration in durations}<option value="{duration}">{duration}</option>{/for}
+      </select>
+    </label>
+    <div><button type="submit" class="primary">Add to calendar</button></div>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Calendar channel</h2>
+  <form method="post" action="/servers/{server.id}/calendar/config" class="inline">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <select name="channelId" required>
+      <option value="">Choose a text channel…</option>
+      {#for channel in textChannels}<option value="{channel.id}">{channel.name}</option>{/for}
+    </select>
+    <button type="submit">Save and publish</button>
+  </form>
+</section>
+{/if}
+{/include}

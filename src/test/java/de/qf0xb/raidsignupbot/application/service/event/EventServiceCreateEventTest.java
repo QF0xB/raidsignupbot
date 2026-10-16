@@ -1,5 +1,6 @@
 package de.qf0xb.raidsignupbot.application.service.event;
 
+import de.qf0xb.raidsignupbot.application.service.guild.RaiderRoleService;
 import de.qf0xb.raidsignupbot.application.dto.CreateEventCommand;
 import de.qf0xb.raidsignupbot.application.port.EventApplicationPort;
 import de.qf0xb.raidsignupbot.application.port.EventUIApplicationPort;
@@ -53,7 +54,8 @@ class EventServiceCreateEventTest {
         templateService,
         mock(EventUIApplicationPort.class),
         mock(RaidCalendarService.class),
-        new EventBackupService());
+        new EventBackupService(),
+        mock(RaiderRoleService.class));
 
     Event event = service.createEvent(CreateEventCommand.builder()
         .serverId("server-1")

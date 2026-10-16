@@ -101,6 +101,16 @@ public class EventLifecycleManager {
     return event.getEnd() != null && !now.isBefore(event.getEnd().plus(Duration.ofHours(1)));
   }
 
+  /**
+   * Test mode: sends one reminder right away, exactly as the scheduler would. It does not mark the
+   * reminder as sent, so the scheduled one still follows.
+   */
+  public void sendReminderNow(Long eventId, EventLifecycleStage stage) {
+    Event event = eventApplicationPort.findById(eventId)
+        .orElseThrow(() -> new IllegalArgumentException("Event " + eventId + " not found"));
+    emit(event, stage);
+  }
+
   private void emit(Event event, EventLifecycleStage stage) {
     lifecycleNotificationEvent.fire(
         new EventLifecycleNotification(

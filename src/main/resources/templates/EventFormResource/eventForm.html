@@ -1,0 +1,93 @@
+{#include layout}
+{#title}{form.title} · {form.serverName}{/title}
+<p>{#if form.creating}<a href="/servers/{form.serverId}/calendar">← Calendar</a>{#else}<a href="/events/{form.eventId}">← Event</a>{/if}</p>
+<h1>{form.title}</h1>
+{#if error}<p class="notice error">{error}</p>{/if}
+
+<section class="panel">
+{#if form.creating}
+<form method="get" action="/servers/{form.serverId}/events/new" class="inline">
+  <span class="label">Calendar entry</span>
+  <select name="entryId" onchange="this.form.submit()">
+    {#for entry in form.entries}<option value="{entry.id}"{#if form.isEntry(entry.id)} selected{/if}>{entry.name}</option>{/for}
+  </select>
+  <noscript><button type="submit">Choose</button></noscript>
+</form>
+<p class="muted">The calendar entry fixes guild, host, template, day, and duration. Pick the start time on that day.</p>
+{/if}
+
+<form method="post" action="{#if form.creating}/servers/{form.serverId}/events{#else}/events/{form.eventId}/edit{/if}" class="grid">
+  <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+  {#if form.creating}
+  <input type="hidden" name="entryId" value="{form.entryId}">
+  {#else}
+  <label>Template
+    <select name="templateKey" required>
+      {#for template in form.templates}<option value="{template.id}"{#if template.id == form.templateKey} selected{/if}>{template.name}</option>{/for}
+    </select>
+  </label>
+  <label>Guild
+    <select name="guildName" required>
+      {#for guild in form.guilds}<option value="{guild}"{#if guild == form.guildName} selected{/if}>{guild}</option>{/for}
+    </select>
+  </label>
+  <label>Key hoster
+    <select name="hosterUserId" required>
+      {#for member in form.members}<option value="{member.id}"{#if member.id == form.hosterUserId} selected{/if}>{member.name}</option>{/for}
+    </select>
+  </label>
+  <label>Duration
+    <select name="duration" required>
+      {#for duration in form.durations}<option value="{duration}"{#if duration == form.duration} selected{/if}>{duration}</option>{/for}
+    </select>
+  </label>
+  {/if}
+  <label>Start <input type="datetime-local" name="start" value="{form.start}" required></label>
+
+  {#if form.askCategory}
+  <label>Category
+    <select name="categoryId" required>
+      <option value="">Choose…</option>
+      {#for category in form.categories}<option value="{category.id}"{#if category.id == form.categoryId} selected{/if}>{category.name}</option>{/for}
+    </select>
+  </label>
+  {/if}
+  {#if form.askSignupChannel}
+  <label>Sign-up channel
+    <select name="signUpChannelId" required>
+      <option value="">Choose…</option>
+      {#for channel in form.textChannels}<option value="{channel.id}"{#if channel.id == form.signUpChannelId} selected{/if}>{channel.name}</option>{/for}
+    </select>
+  </label>
+  {/if}
+  {#if form.askVoiceChannel}
+  <label>Voice channel
+    <select name="voiceChannelId" required>
+      <option value="">Choose…</option>
+      {#for channel in form.voiceChannels}<option value="{channel.id}"{#if channel.id == form.voiceChannelId} selected{/if}>{channel.name}</option>{/for}
+    </select>
+  </label>
+  {/if}
+
+  <label>Donation <input type="number" name="donation" min="0" max="99999" value="{form.donation}" required></label>
+  <label>Donation type
+    <select name="donationType">
+      <option value="one-time"{#if !form.donationPerWin} selected{/if}>one-time</option>
+      <option value="per-win"{#if form.donationPerWin} selected{/if}>per win</option>
+    </select>
+  </label>
+  <label>Event admin
+    <select name="eventAdminUserId" required>
+      {#for member in form.members}<option value="{member.id}"{#if member.id == form.eventAdminUserId} selected{/if}>{member.name}</option>{/for}
+    </select>
+  </label>
+  <label>Team approval
+    <select name="teamsRequireApproval">
+      <option value="false"{#if !form.teamsRequireApproval} selected{/if}>No approval</option>
+      <option value="true"{#if form.teamsRequireApproval} selected{/if}>Require approval</option>
+    </select>
+  </label>
+  <div><button type="submit" class="primary">{#if form.creating}Create event{#else}Save changes{/if}</button></div>
+</form>
+</section>
+{/include}

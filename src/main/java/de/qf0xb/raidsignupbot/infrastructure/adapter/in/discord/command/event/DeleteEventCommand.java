@@ -1,7 +1,6 @@
 package de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.command.event;
 
 import de.qf0xb.raidsignupbot.application.port.EventApplicationPort;
-import de.qf0xb.raidsignupbot.application.port.EventUIApplicationPort;
 import de.qf0xb.raidsignupbot.application.service.event.EventService;
 import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.command.CommandAccessLevel;
@@ -34,9 +33,6 @@ public class DeleteEventCommand extends RaidCommand {
   @Inject
   EventApplicationPort eventApplicationPort;
 
-  @Inject
-  EventUIApplicationPort eventUIApplicationPort;
-
   public DeleteEventCommand() {
     super("deleteevent", "Permanently deletes an event, its signup and teams. Admins only.", CommandAccessLevel.ADMIN);
     addOption(new OptionData(OptionType.STRING, OPTION_NAME, "The event to delete", true, true));
@@ -62,8 +58,7 @@ public class DeleteEventCommand extends RaidCommand {
       return;
     }
 
-    Event deleted = eventService.deleteEvent(raidEvent.getId());
-    eventUIApplicationPort.removeEventFromDiscord(deleted);
+    Event deleted = eventService.deleteEventEverywhere(raidEvent.getId());
 
     event.getHook().sendMessage("Deleted **" + describe(deleted) + "**. Its calendar entry is free again.").queue();
   }

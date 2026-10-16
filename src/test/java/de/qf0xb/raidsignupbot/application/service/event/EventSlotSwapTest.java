@@ -1,5 +1,6 @@
 package de.qf0xb.raidsignupbot.application.service.event;
 
+import de.qf0xb.raidsignupbot.application.service.guild.RaiderRoleService;
 import de.qf0xb.raidsignupbot.application.TeamGeneratorResult;
 import de.qf0xb.raidsignupbot.application.port.EventApplicationPort;
 import de.qf0xb.raidsignupbot.application.port.EventUIApplicationPort;
@@ -29,7 +30,8 @@ class EventSlotSwapTest {
   private final EventUIApplicationPort ui = mock(EventUIApplicationPort.class);
   private final GuildMemberService members = mock(GuildMemberService.class);
   private final EventService service = new EventService(port, mock(GuildService.class), mock(ServerService.class),
-      members, mock(TemplateService.class), ui, mock(RaidCalendarService.class), new EventBackupService());
+      members, mock(TemplateService.class), ui, mock(RaidCalendarService.class), new EventBackupService(),
+      mock(RaiderRoleService.class));
   private final GuildMember dual = new GuildMember("dual");
   private final GuildMember single = new GuildMember("single");
   private final GuildMember replacement = new GuildMember("replacement");

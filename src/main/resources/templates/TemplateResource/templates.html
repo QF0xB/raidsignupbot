@@ -1,0 +1,54 @@
+{#include layout}
+{#title}Templates · {server.name}{/title}
+{#include serverNav active="templates" /}
+<h1>Templates</h1>
+{#if message}<p class="notice">{message}</p>{/if}
+{#if error}<p class="notice error">{error}</p>{/if}
+
+<table>
+  <thead><tr><th>Name</th><th>Key</th><th>Emoji</th><th>Strategies</th><th></th></tr></thead>
+  <tbody>
+  {#for template in templates}
+  <tr>
+    <td><a href="/servers/{server.id}/templates/{template.key}">{template.name}</a></td>
+    <td><code>{template.key}</code></td>
+    <td>{template.emojiSlug}</td>
+    <td>{template.strategies.size}</td>
+    <td class="links"><a href="/servers/{server.id}/templates/{template.key}/simulate">Simulate</a><a href="/servers/{server.id}/templates/{template.key}/export">Export</a></td>
+  </tr>
+  {#else}
+  <tr><td colspan="5" class="muted">No templates yet.</td></tr>
+  {/for}
+  </tbody>
+</table>
+<p class="links"><a href="/servers/{server.id}/templates/export">Export all templates</a></p>
+
+<section class="panel">
+  <h2>New template</h2>
+  <form method="post" action="/servers/{server.id}/templates" class="grid">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <label>Key <input type="text" name="key" required pattern="[A-Za-z0-9_-]+" title="Letters, digits, - and _"></label>
+    <label>Name <input type="text" name="name" maxlength="255" required></label>
+    <label>Emoji slug <input type="text" name="emojiSlug" maxlength="255" required placeholder="e.g. dragon, without colons"></label>
+    <label class="wide">Details <textarea name="details" rows="3" required></textarea></label>
+    <div><button type="submit" class="primary">Create template</button></div>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Import templates</h2>
+  <p class="muted">Paste or load a JSON export from /exporttemplates or this page.</p>
+  <form method="post" action="/servers/{server.id}/templates/import">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <p><input type="file" accept="application/json,.json" onchange="loadJson(this)"></p>
+    <textarea name="json" rows="8" class="code" required></textarea>
+    <p><button type="submit" class="primary">Import</button></p>
+  </form>
+  <script>
+    function loadJson(input) {
+      const file = input.files[0];
+      if (file) file.text().then(text => input.form.json.value = text);
+    }
+  </script>
+</section>
+{/include}

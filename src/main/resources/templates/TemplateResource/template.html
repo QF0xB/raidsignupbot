@@ -1,0 +1,113 @@
+{#include layout}
+{#title}{template.name} · Templates{/title}
+{#include serverNav active="templates" /}
+<p><a href="/servers/{server.id}/templates">← Templates</a></p>
+<h1>{template.name} <small><code>{template.key}</code></small></h1>
+{#if message}<p class="notice">{message}</p>{/if}
+{#if error}<p class="notice error">{error}</p>{/if}
+
+<section class="panel">
+  <h2>Details</h2>
+  <form method="post" action="/servers/{server.id}/templates/{template.key}" class="grid">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <label>Name <input type="text" name="name" value="{template.name}" maxlength="255" required></label>
+    <label>Emoji slug <input type="text" name="emojiSlug" value="{template.emojiSlug}" maxlength="255" required></label>
+    <label class="wide">Details <textarea name="details" rows="4" required>{template.details}</textarea></label>
+    <div><button type="submit" class="primary">Save details</button></div>
+  </form>
+  <p class="links">
+    <a href="/servers/{server.id}/templates/{template.key}/simulate">Simulate teams</a>
+    <a href="/servers/{server.id}/templates/{template.key}/export">Export as JSON</a>
+  </p>
+</section>
+
+{#for strategy in template.strategies}
+<section class="panel">
+  <h2>Strategy: {strategy.name} <small><code>{strategy.key}</code></small></h2>
+  <form method="post" action="/servers/{server.id}/templates/{template.key}/strategies/{strategy.key}" class="grid">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <label>Name <input type="text" name="name" value="{strategy.name}" maxlength="255" required></label>
+    <label class="wide">Guides, one per line
+      <textarea name="guides" rows="3">{#each strategy.guides}{it}
+{/each}</textarea>
+    </label>
+    <div><button type="submit">Save strategy</button></div>
+  </form>
+
+  <h3>Roles</h3>
+  <table>
+    <thead><tr><th>Key</th><th>Name</th><th>Emoji</th><th>Count</th><th>Eligible primary roles</th><th></th><th></th></tr></thead>
+    <tbody>
+    {#for role in strategy.primaryRoles}
+    <tr>
+      <td><code>{role.key}</code></td>
+      <td colspan="5">
+        <form method="post" action="/servers/{server.id}/templates/{template.key}/strategies/{strategy.key}/roles/{role.key}" class="inline">
+          <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+          <input type="text" name="name" value="{role.name}" required>
+          <input type="text" name="emojiSlug" value="{role.emojiSlug}" class="short" required>
+          <input type="number" name="requiredCount" value="{role.requiredCount}" min="0" required>
+          <span class="muted">primary</span>
+          <button type="submit">Save</button>
+        </form>
+      </td>
+      <td>{#include roleDelete /}</td>
+    </tr>
+    {/for}
+    {#for role in strategy.utilityRoles}
+    <tr>
+      <td><code>{role.key}</code></td>
+      <td colspan="5">
+        <form method="post" action="/servers/{server.id}/templates/{template.key}/strategies/{strategy.key}/roles/{role.key}" class="inline">
+          <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+          <input type="text" name="name" value="{role.name}" required>
+          <input type="text" name="emojiSlug" value="{role.emojiSlug}" class="short" required>
+          <input type="number" name="requiredCount" value="{role.requiredCount}" min="0" required>
+          <select name="eligible" multiple size="3" title="Eligible primary roles">
+            {#for primary in strategy.primaryRoles}<option value="{primary.key}"{#if role.eligiblePrimaryRoleKeys.contains(primary.key)} selected{/if}>{primary.name}</option>{/for}
+          </select>
+          <button type="submit">Save</button>
+        </form>
+      </td>
+      <td>{#include roleDelete /}</td>
+    </tr>
+    {/for}
+    </tbody>
+  </table>
+
+  <h3>Add a role</h3>
+  <form method="post" action="/servers/{server.id}/templates/{template.key}/strategies/{strategy.key}/roles" class="inline">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <input type="text" name="roleKey" placeholder="key" class="short" required pattern="[A-Za-z0-9_-]+">
+    <input type="text" name="name" placeholder="name" required>
+    <input type="text" name="emojiSlug" placeholder="emoji" class="short" required>
+    <input type="number" name="requiredCount" value="1" min="0" required>
+    <select name="utility">
+      <option value="false">Primary role</option>
+      <option value="true">Utility role</option>
+    </select>
+    <select name="eligible" multiple size="3" title="Eligible primary roles (utility roles only)">
+      {#for primary in strategy.primaryRoles}<option value="{primary.key}">{primary.name}</option>{/for}
+    </select>
+    <button type="submit">Add role</button>
+  </form>
+
+  <form method="post" action="/servers/{server.id}/templates/{template.key}/strategies/{strategy.key}/delete" class="inline" onsubmit="return confirm('Remove this strategy?')">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <button type="submit" class="danger">Remove strategy</button>
+    <span class="muted">Not possible while existing raids still use it.</span>
+  </form>
+</section>
+{/for}
+
+<section class="panel">
+  <h2>Add a strategy</h2>
+  <form method="post" action="/servers/{server.id}/templates/{template.key}/strategies" class="grid">
+    <input type="hidden" name="{inject:csrf.parameterName}" value="{inject:csrf.token}">
+    <label>Key <input type="text" name="strategyKey" required pattern="[A-Za-z0-9_-]+"></label>
+    <label>Name <input type="text" name="name" maxlength="255" required></label>
+    <label class="wide">Guides, one per line <textarea name="guides" rows="3"></textarea></label>
+    <div><button type="submit" class="primary">Add strategy</button></div>
+  </form>
+</section>
+{/include}

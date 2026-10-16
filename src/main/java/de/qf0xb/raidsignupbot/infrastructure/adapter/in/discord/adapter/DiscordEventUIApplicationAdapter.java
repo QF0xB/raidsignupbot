@@ -13,6 +13,7 @@ import de.qf0xb.raidsignupbot.domain.model.event.EventMemberSignup;
 import de.qf0xb.raidsignupbot.domain.model.event.EventSlot;
 import de.qf0xb.raidsignupbot.domain.model.event.EventUtilityAssignment;
 import de.qf0xb.raidsignupbot.domain.model.guild.GuildMember;
+import de.qf0xb.raidsignupbot.domain.model.guild.SimulatedPlayer;
 import de.qf0xb.raidsignupbot.domain.model.server.Server;
 import de.qf0xb.raidsignupbot.domain.model.template.EventRole;
 import de.qf0xb.raidsignupbot.domain.model.template.EventStrategy;
@@ -20,6 +21,7 @@ import de.qf0xb.raidsignupbot.domain.model.template.EventUtilityRole;
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.util.MessageFactory;
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.util.DiscordEmojiResolver;
 import de.qf0xb.raidsignupbot.infrastructure.adapter.in.discord.util.Collector;
+import de.qf0xb.raidsignupbot.infrastructure.config.WebConfig;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.enterprise.event.Observes;
@@ -37,6 +39,7 @@ import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -68,6 +71,9 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
 
   @Inject
   EventBackupService eventBackupService;
+
+  @Inject
+  WebConfig webConfig;
 
   @Override
   public void addEvent(Event event) {
@@ -237,6 +243,7 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
   @Override
   public void requestBackups(Event event, List<EventBackupOffer> offers) {
     Map<String, List<EventBackupOffer>> offersByUser = offers.stream()
+        .filter(offer -> !SimulatedPlayer.isSimulated(offer.userId()))
         .collect(Collectors.groupingBy(EventBackupOffer::userId));
     for (List<EventBackupOffer> playerOffers : offersByUser.values()) {
       EventBackupOffer offer = playerOffers.getFirst();
@@ -316,11 +323,7 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
     EmbedBuilder embedBuilder = buildTeamsEmbed(event, result, "Teams awaiting approval by onyxguildbot | made by StormFox");
     embedBuilder.setDescription(messageFactory.buildTeams(event, result) + "\n\nApproval required before publishing.");
 
-    ActionRow actions = ActionRow.of(
-        Button.success("event-approval:" + event.getId() + ":approve", "Approve"),
-        Button.danger("event-approval:" + event.getId() + ":reject", "Reject"),
-        Button.secondary("event-approval:" + event.getId() + ":swap", "Swap members")
-    );
+    ActionRow actions = approvalActions(event);
 
     try {
       eventAdmin.openPrivateChannel().complete()
@@ -336,12 +339,30 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
 
       textChannel.sendMessage(eventAdmin.getAsMention())
           .setEmbeds(embedBuilder.build())
-          .setComponents(ActionRow.of(
-              Button.success("event-approval:" + event.getId() + ":approve", "Approve"),
-              Button.danger("event-approval:" + event.getId() + ":reject", "Reject"),
-              Button.secondary("event-approval:" + event.getId() + ":swap", "Swap members")
-          ))
+          .setComponents(actions)
           .complete();
+    }
+  }
+
+  ActionRow approvalActions(Event event) {
+    List<Button> buttons = new ArrayList<>(List.of(
+        Button.success("event-approval:" + event.getId() + ":approve", "Approve"),
+        Button.danger("event-approval:" + event.getId() + ":reject", "Reject"),
+        Button.secondary("event-approval:" + event.getId() + ":swap", "Swap members")));
+    webConfig.eventUrl(event.getId()).ifPresent(url -> buttons.add(Button.link(url, "Edit in web UI")));
+    return ActionRow.of(buttons);
+  }
+
+  @Override
+  public void announceTeamsRejected(Event event, String rejectedByUserId) {
+    if (event.getSignUpChannelId() == null || event.getSignUpChannelId().isBlank()) {
+      return;
+    }
+
+    TextChannel textChannel = api.getTextChannelById(event.getSignUpChannelId());
+    if (textChannel != null) {
+      textChannel.sendMessage("Teams were rejected by <@" + rejectedByUserId + ">. Signups are open again.")
+          .queue();
     }
   }
 
@@ -400,6 +421,7 @@ public class DiscordEventUIApplicationAdapter implements EventUIApplicationPort 
         .forEach(userIds::add);
 
     return userIds.stream()
+        .filter(userId -> !SimulatedPlayer.isSimulated(userId))
         .map(userId -> "<@" + userId + ">")
         .reduce((left, right) -> left + " " + right)
         .orElse("");

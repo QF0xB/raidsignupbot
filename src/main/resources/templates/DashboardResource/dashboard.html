@@ -1,0 +1,67 @@
+{#include layout}
+{#title}Raids · Raid Signup Bot{/title}
+<h1>Your servers</h1>
+
+{#if approvals}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Waiting for your approval</h2>
+    <span class="badge pending">{approvals.size} pending</span>
+  </div>
+  <table>
+    <thead><tr><th>Start</th><th>Raid</th><th>Guild</th><th></th></tr></thead>
+    <tbody>
+    {#for event in approvals}
+    <tr>
+      <td>{event.start}</td>
+      <td><strong>{event.title}</strong></td>
+      <td>{event.guildName}</td>
+      <td><a class="button primary" href="/events/{event.id}">Review teams</a></td>
+    </tr>
+    {/for}
+    </tbody>
+  </table>
+</section>
+{/if}
+
+{#for card in servers}
+<section class="panel">
+  <div class="panel-head">
+    <h2>{card.access.name}</h2>
+    <p class="links">
+      <a href="/servers/{card.access.id}/calendar">Calendar</a>
+      {#if card.canCreateEvent}<a href="/servers/{card.access.id}/events/new">+ Create event</a>{/if}
+      {#if card.access.manageTemplates}<a href="/servers/{card.access.id}/templates">Templates</a>{/if}
+      {#if card.access.manageGuilds}<a href="/servers/{card.access.id}/settings">Guilds &amp; settings</a>{/if}
+    </p>
+  </div>
+  {#if card.access.manageEvents}
+  {#if card.events.isEmpty}
+  <p class="muted">No upcoming raids.</p>
+  {#else}
+  <table>
+    <thead><tr><th>Start</th><th>Raid</th><th>Guild</th><th>Duration</th><th>Status</th></tr></thead>
+    <tbody>
+    {#for event in card.events}
+    <tr>
+      <td>{event.start}</td>
+      <td><a href="/events/{event.id}"><strong>{event.title}</strong></a></td>
+      <td>{event.guildName}</td>
+      <td>{event.duration}</td>
+      <td><span class="badge {event.statusTone}">{event.status}</span></td>
+    </tr>
+    {/for}
+    </tbody>
+  </table>
+  {/if}
+  {/if}
+</section>
+{#else}
+{#if !approvals}
+<section class="panel center-card">
+  <h2>Nothing to manage yet</h2>
+  <p class="muted">You have no bot permissions on any server the bot is in.</p>
+</section>
+{/if}
+{/for}
+{/include}

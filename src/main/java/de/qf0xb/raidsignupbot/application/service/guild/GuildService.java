@@ -35,7 +35,8 @@ public class GuildService {
   }
 
   public Guild updateGuild(String guildName, UpdateGuildCommand command) {
-    Guild guild = findGuildByName(guildName);
+    // Guild names are only unique per server.
+    Guild guild = findGuildByServerIdAndName(command.getServerId(), guildName);
     guild.setName(command.getName());
     guild.setServerId(command.getServerId());
     guild.setServer(serverService.ensureServer(command.getServerId()));
