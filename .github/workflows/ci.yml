@@ -54,12 +54,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # The JVM Dockerfile only copies files, so building for arm64 needs no emulation.
+      # The JVM Dockerfile only copies files and OR-Tools bundles natives for both architectures,
+      # so the multi-arch build needs no emulation.
       - uses: docker/build-push-action@v6
         with:
           context: .
           file: src/main/docker/Dockerfile.jvm
-          platforms: linux/arm64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ghcr.io/qf0xb/raidsignupbot:latest
