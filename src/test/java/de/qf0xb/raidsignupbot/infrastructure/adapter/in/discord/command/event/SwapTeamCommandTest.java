@@ -6,13 +6,23 @@ import de.qf0xb.raidsignupbot.domain.model.event.Event;
 import de.qf0xb.raidsignupbot.domain.model.guild.Guild;
 import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.*;
 
 class SwapTeamCommandTest {
+  @Test
+  void registersRequiredOptionsBeforeTheOptionalSlots() {
+    SwapTeamCommand command = new SwapTeamCommand();
+
+    assertDoesNotThrow(() -> Commands.slash(command.getCommandName(), command.getDescription())
+        .addOptions(command.getOptions()));
+  }
+
   @Test
   void forwardsTheSelectedBoxesToTheSwapService() {
     SwapTeamCommand command = new SwapTeamCommand();

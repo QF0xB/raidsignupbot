@@ -5,7 +5,7 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -13,7 +13,8 @@ public abstract class RaidCommand implements SlashCommandDefinition {
   private final String commandName;
   private final String description;
   private final CommandAccessLevel accessLevel;
-  private final Set<OptionData> options = new HashSet<>();
+  // Discord requires required options before optional ones, so keep declaration order.
+  private final Set<OptionData> options = new LinkedHashSet<>();
 
   public RaidCommand(String commandName, String description) {
     this(commandName, description, CommandAccessLevel.PUBLIC);
